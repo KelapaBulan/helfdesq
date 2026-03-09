@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="container mt-4">
+    <h3>Assign Ticket</h3>
+
+    <form method="post">
+        {% csrf_token %}
+
+        <div class="mb-3">
+            <label class="form-label">Assign To Staff</label>
+            <select name="assigned_to" class="form-select">
+                
+                <option value="">-- Unassigned --</option>
+
+                {% for user in staff_users %}
+                    <option value="{{ user.id }}"
+                        {% if ticket.assigned_to == user %}
+                            selected
+                        {% endif %}
+                    >
+                        {{ user.username }}
+                    </option>
+                {% endfor %}
+
+            </select>
+        </div>
+
+        <button class="btn btn-primary">Save</button>
+        <a href="{% url 'admin_dashboard' %}" 
+           class="btn btn-secondary">Cancel</a>
+    </form>
+</div>
+
+{% endblock %}

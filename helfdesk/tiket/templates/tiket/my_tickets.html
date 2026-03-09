@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block title %}My Tickets{% endblock %}
+
+{% block content %}
+
+<div class="container-fluid">
+    <h3 class="mb-4">🎫 My Submitted Tickets</h3>
+
+    {% if tickets %}
+    <div class="table-responsive">
+        <table class="table table-hover align-middle shadow-sm bg-white">
+            <thead class="table-dark">
+                <tr>
+                    <th>ID</th>
+                    <th>Title</th>
+                    <th>Priority</th>
+                    <th>Status</th>
+                    <th>Assigned To</th>
+                    <th>Created</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ticket in tickets %}
+                <tr>
+                    <td>#{{ ticket.id }}</td>
+
+                    <td>
+                        <strong>{{ ticket.title }}</strong><br>
+                        <small class="text-muted">
+                            {{ ticket.department }}
+                        </small>
+                    </td>
+
+                    <!-- PRIORITY -->
+                    <td>
+                        {% if ticket.priority == "LOW" %}
+                            <span class="badge bg-secondary">Low</span>
+                        {% elif ticket.priority == "MEDIUM" %}
+                            <span class="badge bg-info text-dark">Medium</span>
+                        {% elif ticket.priority == "HIGH" %}
+                            <span class="badge bg-warning text-dark">High</span>
+                        {% elif ticket.priority == "CRITICAL" %}
+                            <span class="badge bg-danger">Critical</span>
+                        {% endif %}
+                    </td>
+
+                    <!-- STATUS -->
+                    <td>
+                        {% if ticket.status == "OPEN" %}
+                            <span class="badge bg-warning text-dark">Open</span>
+                        {% elif ticket.status == "IN_PROGRESS" %}
+                            <span class="badge bg-primary">In Progress</span>
+                        {% elif ticket.status == "RESOLVED" %}
+                            <span class="badge bg-success">Resolved</span>
+                        {% elif ticket.status == "CLOSED" %}
+                            <span class="badge bg-dark">Closed</span>
+                        {% endif %}
+                    </td>
+
+                    <td>
+                        {% if ticket.assigned_to %}
+                            {{ ticket.assigned_to.username }}
+                        {% else %}
+                            <span class="text-muted">Unassigned</span>
+                        {% endif %}
+                    </td>
+
+                    <td>
+                        {{ ticket.created_at|date:"M d, Y H:i" }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% else %}
+        <div class="alert alert-info shadow-sm">
+            You haven't submitted any tickets yet.
+        </div>
+    {% endif %}
+</div>
+
+{% endblock %}
