@@ -61,7 +61,14 @@ class Ticket(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
+    deleted_at = models.DateTimeField(null=True, blank=True)
+    deleted_by = models.ForeignKey(
+    User,
+    null=True,
+    blank=True,
+    on_delete=models.SET_NULL,
+    related_name="deleted_tickets"
+        )
     def __str__(self):
         return f"#{self.id} - {self.title}"
 

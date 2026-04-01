@@ -30,6 +30,22 @@
                         {% endif %}
                     </div>
 
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">
+                            Contact Email
+                        </label>
+                        {{ form.contact_email }}
+
+                        <div class="form-text">
+                            We will use this email to contact you about your ticket.
+                        </div>
+                        {% if form.contact_email.errors %}
+                            <div class="text-danger small">
+                                {{ form.contact_email.errors }}
+                            </div>
+                        {% endif %}
+                    </div>
+
                     <!-- Department -->
                     <div class="mb-3">
                         <label class="form-label fw-semibold">

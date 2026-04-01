@@ -1,125 +1,276 @@
 {% extends "base.html" %}
 
+{% load static %}
+
 {% block title %}Admin Dashboard{% endblock %}
 
 {% block content %}
+<link rel="stylesheet"
+href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css">
+
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
+<style>
+.new-ticket {
+    background-color: #fff3cd;
+    animation: fadeHighlight 5s forwards;
+}
+
+@keyframes fadeHighlight {
+    from { background-color: #fff3cd; }
+    to { background-color: transparent; }
+}
+
+.row-success {
+    animation: flashGreen 1s ease;
+}
+
+@keyframes flashGreen {
+    0%   { background-color: #d1e7dd; }
+    100% { background-color: transparent; }
+}
+</style>
+
+
 <div class="container-fluid">
     <h3 class="mb-4">📊 Admin Dashboard - All Tickets</h3>
+    <div id="alertContainer"
+     class="position-fixed top-0 end-0 p-3"
+     style="z-index:1055; width:350px;">
+
+<div id="newTicketAlert" class="alert alert-warning shadow d-none fade show">
+    🚨 New ticket received
+    <div class="mt-2 text-end"></div>
+</div>
+
+</div>  
+
+<div class="card shadow-sm mt-4">
+    <div class="card-body">
+
+        <h5 class="mb-3">📡 Live Activity Feed</h5>
+
+        <ul id="activityFeed" class="list-group list-group-flush">
+
+            <li class="list-group-item text-muted">
+                Loading activity...
+            </li>
+
+        </ul>
+
+    </div>
+</div>
+<div class="row mb-4 text-center">
+
+<div class="col-md-4">
+<div class="card shadow-sm">
+<div class="card-body">
+<h6>Open Tickets</h6>
+<h3 id="openCount">0</h3>
+</div>
+</div>
+</div>
+
+<div class="col-md-4">
+<div class="card shadow-sm">
+<div class="card-body">
+<h6>In Progress</h6>
+<h3 id="progressCount">0</h3>
+</div>
+</div>
+</div>
+
+<div class="col-md-4">
+<div class="card shadow-sm">
+<div class="card-body">
+<h6>Closed</h6>
+<h3 id="closedCount">0</h3>
+</div>
+</div>
+</div>
+
+</div>
+
+<div class="mb-3">
+    <label class="form-label"><strong>Status Filter</strong></label>
+    <select id="statusFilter" class="form-select w-auto">
+        <option value="">All</option>
+        <option value="OPEN">Open</option>
+        <option value="IN_PROGRESS">In Progress</option>
+        <option value="RESOLVED">Resolved</option>
+        <option value="CLOSED">Closed</option>
+    </select>
+</div>
+
 
     {% if tickets %}
     <div class="table-responsive">
-        <table class="table table-hover align-middle shadow-sm bg-white">
+        <table id="ticketsTable" class="table table-hover align-middle shadow-sm bg-white">
             <thead class="table-dark">
-                <tr>
-                    <th>ID</th>
-                    <th>Title</th>
-                    <th>User</th>
-                    <th>Department</th>
-                    <th>Priority</th>
-                    <th>Status</th>
-                    <th>Assigned To</th>
-                    <th>Created</th>
-                </tr>
+    <tr>
+        <th>ID</th>
+        <th>Title</th>
+        <th>User</th>
+        <th>Department</th>
+        <th>Contact Email</th>
+        <th>Priority</th>
+        <th>Status</th>
+        <th>Assigned To</th>
+        <th>Created</th>
+        <th>Delete</th>
+    </tr>
+
+                 <!-- FILTER ROW -->
+    <tr>
+        <th></th>
+        <th></th>
+        <th></th>
+        <th></th>
+        <th></th>
+
+        <!-- Priority filter -->
+        <th>
+            <select class="form-select form-select-sm column-filter" data-column="5">
+                <option value="">All</option>
+                <option value="CRITICAL">Critical</option>
+                <option value="HIGH">High</option>
+                <option value="MEDIUM">Medium</option>
+                <option value="LOW">Low</option>
+            </select>
+        </th>
+
+        <!-- Status filter -->
+        <th>
+            <select class="form-select form-select-sm column-filter" data-column="6">
+                <option value="">All</option>
+                <option value="OPEN">Open</option>
+                <option value="IN_PROGRESS">In Progress</option>
+                <option value="RESOLVED">Resolved</option>
+                <option value="CLOSED">Closed</option>
+            </select>
+        </th>
+
+        <!-- Assigned filter -->
+        <th>
+            <select class="form-select form-select-sm column-filter" data-column="7">
+                <option value="">All</option>
+                {% for user in staff_users %}
+                <option value="{{ user.username }}">{{ user.username }}</option>
+                {% endfor %}
+            </select>
+        </th>
+
+        <th></th>
+        <th></th>
+    </tr>
             </thead>
-            <tbody>
+            <tbody id="tickets-table-body">
                 {% for ticket in tickets %}
-                <tr>
-                    <td>#{{ ticket.id }}</td>
+                <tr id="ticket-{{ ticket.id }}">
+                    <td data-order="{{ ticket.id }}">#{{ ticket.id }}</td>
 
                         <td>
-                        <strong>{{ ticket.title }}</strong><br>
+<strong>{{ ticket.title }}</strong><br>
 
-                        <small class="text-muted">
-                            {{ ticket.description|truncatechars:50 }}
-                        </small>
+<small class="text-muted">
+{{ ticket.description|truncatechars:50 }}
+</small>
 
-                            {% if ticket.description|length > 50 %}
-                            <br>
-                        <button class="btn btn-sm btn-link p-0 mt-1 d-flex align-items-center gap-1"
+{% if ticket.description|length > 50 %}
+<br>
+
+<button class="btn btn-sm btn-link p-0 mt-1"
         data-bs-toggle="collapse"
         data-bs-target="#desc{{ ticket.id }}">
-    <span>Details</span>
-    <span class="arrow">&#9662;</span>
+    Details
 </button>
-                        {% endif %}
-                    </td>
+
+<div class="collapse mt-2" id="desc{{ ticket.id }}">
+    <div class="p-2 bg-light rounded">
+        {{ ticket.description }}
+    </div>
+</div>
+
+{% endif %}
+</td>
+                    
 
                     <td>{{ ticket.created_by.username }}</td>
 
                     <td>{{ ticket.department }}</td>
 
+                    <td>{{ ticket.contact_email }}</td>
+
                     <!-- PRIORITY -->
-                    <td>
-                        {% if ticket.priority == "LOW" %}
-                            <span class="badge bg-secondary">Low</span>
-                        {% elif ticket.priority == "MEDIUM" %}
-                            <span class="badge bg-info text-dark">Medium</span>
-                        {% elif ticket.priority == "HIGH" %}
-                            <span class="badge bg-warning text-dark">High</span>
-                        {% elif ticket.priority == "CRITICAL" %}
-                            <span class="badge bg-danger">Critical</span>
-                        {% endif %}
-                    </td>
+                    <td data-order="{% if ticket.priority == 'CRITICAL' %}1{% elif ticket.priority == 'HIGH' %}2{% elif ticket.priority == 'MEDIUM' %}3{% else %}4{% endif %}">
+    {% if ticket.priority == "LOW" %}
+        <span class="badge bg-secondary">Low</span>
+    {% elif ticket.priority == "MEDIUM" %}
+        <span class="badge bg-info text-dark">Medium</span>
+    {% elif ticket.priority == "HIGH" %}
+        <span class="badge bg-warning text-dark">High</span>
+    {% elif ticket.priority == "CRITICAL" %}
+        <span class="badge bg-danger">Critical</span>
+    {% endif %}
+</td>
 
                     <!-- STATUS -->
-                    <td>
-    <form method="post" action="{% url 'update_status' ticket.id %}">
-        {% csrf_token %}
+                    <td
+data-search="{{ ticket.status }}"
+data-order="{% if ticket.status == 'OPEN' %}1{% elif ticket.status == 'IN_PROGRESS' %}2{% elif ticket.status == 'RESOLVED' %}3{% else %}4{% endif %}">
 
-        <select name="status"
-                class="form-select form-select-sm"
-                onchange="this.form.submit()">
+{% csrf_token %}
 
-                    {% for value, label in status_choices %}
-                <option value="{{ value }}"
-                    {% if ticket.status == value %}
-                        selected
-                    {% endif %}
-                >
-                    {{ label }}
-                </option>
-                    {% endfor %}
+<select class="form-select form-select-sm status-select"
+        data-id="{{ ticket.id }}">
 
-                </select>
-            </form>
-        </td>
+{% for value, label in status_choices %}
+<option value="{{ value }}"
+{% if ticket.status == value %}selected{% endif %}>
+{{ label }}
+</option>
+{% endfor %}
 
-                   <td>
-    <form method="post" action="{% url 'assign_ticket' ticket.id %}">
-        {% csrf_token %}
+</select>
+</td>
 
-        <select name="assigned_to"
-                class="form-select form-select-sm"
-                onchange="this.form.submit()">
+                   <td data-order="{{ ticket.assigned_to.username|default:'' }}">
+    {% csrf_token %}
 
-            <option value="">Unassigned</option>
+    <select class="form-select form-select-sm assign-select"
+        data-id="{{ ticket.id }}">
 
-            {% for user in staff_users %}
-                <option value="{{ user.id }}"
-                    {% if ticket.assigned_to == user %}
-                        selected
-                    {% endif %}
-                >
-                    {{ user.username }}
-                </option>
-                    {% endfor %}
+        <option value="">Unassigned</option>
 
-                </select>
-            </form>
-        </td>
+        {% for user in staff_users %}
+        <option value="{{ user.id }}"
+            {% if ticket.assigned_to == user %}selected{% endif %}>
+            {{ user.username }}
+        </option>
+        {% endfor %}
+
+    </select>
+</td>
 
                     <td>{{ ticket.created_at|date:"M d, Y H:i" }}</td>
+<td>
+{% if user.is_superuser %}
+<form method="post" action="{% url 'delete_ticket' ticket.id %}">
+    {% csrf_token %}
+    <button class="btn btn-sm btn-danger"
+            onclick="return confirm('Delete this ticket?')">
+        Delete
+    </button>
+</form>
+{% else %}
+<span class="text-muted">—</span>
+{% endif %}
+</td>
                 </tr>
-                <tr class="collapse bg-light" id="desc{{ ticket.id }}">
-    <td colspan="8">
-        <div class="p-3">
-            <strong>Description:</strong>
-            <p class="mb-0 mt-2">
-                {{ ticket.description }}
-            </p>
-        </div>
-    </td>
-</tr>
+               
                 {% endfor %}
             </tbody>
         </table>
@@ -131,28 +282,360 @@
         </div>
     {% endif %}
 </div>
-{% endblock %}
+
+
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
+window.staffUsersOptions = `
+{% for user in staff_users %}
+<option value="{{ user.id }}">{{ user.username }}</option>
+{% endfor %}
+`;
+</script>
+
+<script>
+window.isSuperuser = {{ user.is_superuser|yesno:"true,false" }};
+</script>
+
+<script>
+
+    function ajaxUpdate(url, data, onSuccess) {
+    fetch(url, {
+        method: "POST",
+        headers: {
+            "X-CSRFToken": document.querySelector('[name=csrfmiddlewaretoken]').value,
+            "Content-Type": "application/x-www-form-urlencoded"
+        },
+        body: new URLSearchParams(data)
+    })
+    .then(res => {
+        if (!res.ok) throw new Error("Request failed");
+        return res.json();
+    })
+    .then(response => {
+        if (onSuccess) onSuccess(response);
+    })
+    .catch(err => console.error("AJAX error:", err));
+}
+
 document.addEventListener("DOMContentLoaded", function () {
-    const collapses = document.querySelectorAll(".collapse");
 
-    collapses.forEach(function (collapseEl) {
+   // At the top, alongside lastSeenTime
+let lastSeenTime = parseFloat(localStorage.getItem("lastSeenTime")) || 0;
+let alertedTicketIds = new Set(
+    JSON.parse(localStorage.getItem("alertedTicketIds") || "[]")
+);
+let isFirstRun = true;
+    
 
-        collapseEl.addEventListener("show.bs.collapse", function () {
-            const button = document.querySelector(
-                '[data-bs-target="#' + collapseEl.id + '"]'
-            );
-            if (button) button.textContent = "Hide";
+    function checkForNewTickets() {
+
+    fetch("/api/tickets-since/" + lastSeenTime + "/")
+        .then(res => {
+            if (!res.ok) throw new Error("Server error");
+            return res.json();
+        })
+        .then(tickets => {
+
+    if (!tickets.length) {
+        isFirstRun = false;
+        return;
+    }
+
+    // ── UPDATE TIMESTAMP ──────────────────────────────────────────
+    const newestTimestamp = Math.max(...tickets.map(t => t.timestamp));
+    lastSeenTime = Math.max(lastSeenTime, newestTimestamp);
+    localStorage.setItem("lastSeenTime", lastSeenTime);
+
+    // ── CRITICAL TRACKING (runs ALWAYS, even on first run) ────────
+    const hasNewCritical = tickets.some(
+        t => t.priority === "CRITICAL" && !alertedTicketIds.has(t.id)
+    );
+
+    tickets.forEach(t => {
+        if (t.priority === "CRITICAL") alertedTicketIds.add(t.id);
+    });
+    localStorage.setItem("alertedTicketIds", JSON.stringify([...alertedTicketIds]));
+
+    // ── ALERTS (only after first run) ─────────────────────────────
+    if (!isFirstRun) {
+
+        document.getElementById("newTicketAlert")
+           alertBox.classList.remove("d-none");
+
+    setTimeout(() => {
+        alertBox.classList.add("fade");   // Bootstrap fade
+        alertBox.classList.remove("show");
+
+        setTimeout(() => {
+            alertBox.classList.add("d-none"); // fully hide after fade
+        }, 500); // match Bootstrap fade duration
+    }, 5000);
+
+        if (hasNewCritical) {
+            const sound = document.getElementById("criticalSound");
+            if (sound) sound.play().catch(() => {});
+
+            const toastEl = document.getElementById("criticalToast");
+            if (toastEl) new bootstrap.Toast(toastEl).show();
+        }
+    }
+
+    // ── ADD NEW ROWS ──────────────────────────────────────────────
+  tickets.forEach(ticket => {
+    if (!ticket || ticket.id == null) return;  // ✅ skip malformed entries
+
+    const rowId = `ticket-${ticket.id}`;    
+    if (document.getElementById(rowId)) return;
+
+    const deleteColumn = window.isSuperuser
+    ? `
+    <form method="post" action="/delete-ticket/${ticket.id}/">
+        <input type="hidden" name="csrfmiddlewaretoken" value="${getCSRFToken()}">
+        <button class="btn btn-sm btn-danger"
+                onclick="return confirm('Delete this ticket?')">
+            Delete
+        </button>
+    </form>
+    `
+    : `<span class="text-muted">—</span>`;
+
+    const desc = (ticket.description || "").substring(0, 50);
+
+   const assignedDisplay = ticket.assigned_to
+    ? (typeof ticket.assigned_to === "object"
+        ? (ticket.assigned_to.username || "—")
+        : ticket.assigned_to)
+    : "Unassigned";
+
+const newRowHtml = $(`
+<tr id="ticket-${ticket.id}">
+    <td data-order="${ticket.id}">#${ticket.id}</td>
+
+    <td>
+        <strong>${ticket.title}</strong><br>
+        <small class="text-muted">${desc}</small>
+    </td>
+
+    <td>${ticket.user || "—"}</td>
+    <td>${ticket.department || "—"}</td>
+    <td>${ticket.email || "—"}</td>
+
+    <td>
+        <span class="badge ${
+            ticket.priority === "CRITICAL" ? "bg-danger" :
+            ticket.priority === "HIGH" ? "bg-warning text-dark" :
+            ticket.priority === "MEDIUM" ? "bg-info text-dark" :
+            "bg-secondary"
+        }">
+            ${ticket.priority || "LOW"}
+        </span>
+    </td>
+
+    <td>
+        <select class="form-select form-select-sm status-select"
+                data-id="${ticket.id}">
+            <option value="OPEN" ${ticket.status === "OPEN" ? "selected" : ""}>Open</option>
+            <option value="IN_PROGRESS" ${ticket.status === "IN_PROGRESS" ? "selected" : ""}>In Progress</option>
+            <option value="RESOLVED" ${ticket.status === "RESOLVED" ? "selected" : ""}>Resolved</option>
+            <option value="CLOSED" ${ticket.status === "CLOSED" ? "selected" : ""}>Closed</option>
+        </select>
+    </td>
+
+    <td>
+        <select class="form-select form-select-sm assign-select"
+                data-id="${ticket.id}">
+            <option value="">Unassigned</option>
+            ${window.staffUsersOptions}
+        </select>
+    </td>
+
+    <td>${ticket.created}</td>
+
+    <td>${deleteColumn}</td>
+</tr>
+`);
+
+    if (table) {
+        const rowNode = table.row.add(newRowHtml).draw(false).node();
+$(rowNode).addClass("new-ticket");
+
+table.row.add(rowNode).draw(false);
+
+        rowNode.id = rowId;
+        $(rowNode).addClass("new-ticket");
+    }
+
+});
+
+// 🔥 FORCE correct ordering
+table.order([0, 'desc']).draw(false);
+
+    isFirstRun = false;
+
+})
+}
+
+// Bug 3 fix: call immediately, then repeat
+checkForNewTickets();
+setInterval(checkForNewTickets, 10000);
+    // ==============================
+    // STATS
+    // ==============================
+    function updateStats(){
+        fetch("/api/ticket-stats/")
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById("openCount").textContent = data.OPEN;
+            document.getElementById("progressCount").textContent = data.IN_PROGRESS;
+            document.getElementById("closedCount").textContent = data.CLOSED;
+        });
+    }
+
+    setInterval(updateStats, 10000);
+    updateStats();
+
+    // ==============================
+    // ACTIVITY FEED
+    // ==============================
+    function updateActivityFeed(){
+
+    fetch("/api/activity-feed/")
+    .then(res => {
+        if (!res.ok) throw new Error("Feed error");
+        return res.text(); // safer
+    })
+    .then(text => {
+
+        let data;
+
+        try {
+            data = JSON.parse(text);
+        } catch (e) {
+            console.error("Invalid JSON:", text);
+            return;
+        }
+
+        const feed = document.getElementById("activityFeed");
+        if (!feed) return;
+
+        feed.innerHTML = "";
+
+        data.forEach(a => {
+            feed.innerHTML += `
+                <li class="list-group-item">
+                    <strong>${a.time}</strong> — ${a.message}
+                </li>
+            `;
         });
 
-        collapseEl.addEventListener("hide.bs.collapse", function () {
-            const button = document.querySelector(
-                '[data-bs-target="#' + collapseEl.id + '"]'
-            );
-            if (button) button.textContent = "View more";
-        });
+    })
+    .catch(err => console.error("Activity error:", err));
+}
 
+    setInterval(updateActivityFeed, 10000);
+    updateActivityFeed();
+
+});
+
+function updateStatus(select) {
+    const form = select.form;
+    const url = form.action;
+    const formData = new FormData(form);
+
+    fetch(url, {
+        method: "POST",
+        body: formData,
+        headers: {
+            "X-CSRFToken": form.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+    })
+    .then(res => {
+        if (!res.ok) throw new Error("Failed");
+    })
+    .catch(err => console.error(err));
+}
+
+// ==============================
+// ✅ DATATABLE (GLOBAL)
+// ==============================
+let table;
+
+$(document).ready(function(){
+
+    if (!$.fn.DataTable.isDataTable('#ticketsTable')) {
+
+        table = $('#ticketsTable').DataTable({
+    order: [[0, "desc"]],
+    pageLength: 50,
+    autoWidth: false,        // ✅ important
+    responsive: true,        // ✅ fixes layout shifts
+    columnDefs: [
+        { orderable: false, targets: [9] }
+    ]
+});
+
+    }
+
+    // COLUMN FILTERS
+    $('.column-filter').on('change', function(){
+
+        let columnIndex = $(this).data('column');
+        let value = $(this).val();
+
+        table.column(columnIndex).search(value || '').draw();
+    });
+
+    // STATUS FILTER
+    $('#statusFilter').on('change', function(){
+
+        const value = $(this).val();
+        table.column(6).search(value || '').draw();
+    });
+
+});
+
+// STATUS UPDATE
+$(document).on("change", ".status-select", function () {
+    const ticketId = $(this).data("id");
+    const value = $(this).val();
+    const row = $(this).closest("tr");
+
+    ajaxUpdate(`/update-status/${ticketId}/`, { status: value }, () => {
+        flashRow(row);
     });
 });
+
+// ASSIGN UPDATE
+$(document).on("change", ".assign-select", function () {
+    const ticketId = $(this).data("id");
+    const value = $(this).val();
+    const row = $(this).closest("tr");
+
+    ajaxUpdate(`/assign-ticket/${ticketId}/`, { assigned_to: value }, () => {
+        flashRow(row);
+    });
+});
+
+function flashRow(row) {
+    row.addClass("row-success");
+
+    setTimeout(() => {
+        row.removeClass("row-success");
+    }, 1000);
+}
+
+function getCSRFToken() {
+    return document.querySelector('[name=csrfmiddlewaretoken]').value;
+}
+const alertBox = document.getElementById("newTicketAlert");
+                                 
 </script>
+<audio id="criticalSound" src="{% static 'sounds/alert.mp3' %}" preload="auto"></audio>
+
+
+
+{% endblock %}
+

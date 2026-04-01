@@ -23,6 +23,8 @@ class Ticket(models.Model):
 
     title = models.CharField(max_length=255)
     description = models.TextField()
+    
+    contact_email = models.EmailField(blank=True, null=True)
 
     created_by = models.ForeignKey(
         User,
@@ -61,8 +63,37 @@ class Ticket(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+    deleted_by = models.ForeignKey(
+    User,
+    null=True,
+    blank=True,
+    on_delete=models.SET_NULL,
+    related_name="deleted_tickets"
+        )
+    def __str__(self):
+        return f"#{self.id} - {self.title}"
 
     def __str__(self):
         return f"#{self.id} - {self.title}"
+    
+class FAQ(models.Model):
+    question = models.CharField(max_length=255)
+    answer = models.TextField()
+    order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["order"]
+
+    def __str__(self):
+        return self.question
+    
+class TicketActivity(models.Model):
+    ticket = models.ForeignKey("Ticket", on_delete=models.CASCADE)
+    message = models.CharField(max_length=255)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.message
 
 # Create your models here.

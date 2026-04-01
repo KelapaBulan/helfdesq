@@ -6,7 +6,7 @@ from django.contrib.auth.forms import UserCreationForm
 class TicketForm(forms.ModelForm):
     class Meta:
         model = Ticket
-        fields = ["title", "department", "priority", "description"]
+        fields = ["title", "department", "priority", "description","contact_email"]
 
         widgets = {
             "title": forms.TextInput(attrs={
@@ -18,6 +18,8 @@ class TicketForm(forms.ModelForm):
             }),
             "priority": forms.Select(attrs={
                 "class": "form-select"
+            }),
+            "contact_email": forms.EmailInput(attrs={"class": "form-control"
             }),
             "description": forms.Textarea(attrs={
                 "class": "form-control",

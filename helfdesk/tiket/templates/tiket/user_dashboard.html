@@ -3,69 +3,51 @@
 {% block title %}User Dashboard{% endblock %}
 
 {% block content %}
+
+<div class="container-fluid min-vh-100">
+
 <div class="row">
     <div class="col text-center">
         <h2>Frequently Asked Questions</h2>
     </div>
 </div>
 
-<h3 class="mb-4"></h3>
 <div class="card shadow-sm mt-4">
     <div class="card-body">
         <h4 class="mb-3">Help & FAQ</h4>
 
 <div class="accordion" id="faqAccordion">
 
-    <div class="accordion-item">
-        <h2 class="accordion-header">
-            <button class="accordion-button" type="button"
-                    data-bs-toggle="collapse"
-                    data-bs-target="#faq1">
-                How do I create a ticket?
-            </button>
-        </h2>
-        <div id="faq1" class="accordion-collapse collapse show"
-             data-bs-parent="#faqAccordion">
-            <div class="accordion-body">
-                Click on <strong>Create Ticket</strong> in the sidebar and fill in the required details.
-            </div>
-        </div>
-    </div>
+{% for faq in faqs %}
 
-    <div class="accordion-item">
-        <h2 class="accordion-header">
-            <button class="accordion-button collapsed" type="button"
-                    data-bs-toggle="collapse"
-                    data-bs-target="#faq2">
-                How can I check my ticket status?
-            </button>
-        </h2>
-        <div id="faq2" class="accordion-collapse collapse"
-             data-bs-parent="#faqAccordion">
-            <div class="accordion-body">
-                Go to <strong>My Tickets</strong> to see all your submitted tickets and their current status.
-            </div>
-        </div>
-    </div>
+<div class="accordion-item">
+    <h2 class="accordion-header">
+        <button class="accordion-button {% if not forloop.first %}collapsed{% endif %}"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#faq{{ faq.id }}">
+            {{ faq.question }}
+        </button>
+    </h2>
 
-    <div class="accordion-item">
-        <h2 class="accordion-header">
-            <button class="accordion-button collapsed" type="button"
-                    data-bs-toggle="collapse"
-                    data-bs-target="#faq3">
-                How long does it take to resolve a ticket?
-            </button>
-        </h2>
-        <div id="faq3" class="accordion-collapse collapse"
-             data-bs-parent="#faqAccordion">
-            <div class="accordion-body">
-                Resolution time depends on the issue severity. You will receive updates once the status changes.
-            </div>
-        </div>
-    </div>
+    <div id="faq{{ faq.id }}"
+         class="accordion-collapse collapse {% if forloop.first %}show{% endif %}"
+         data-bs-parent="#faqAccordion">
 
-     </div>
+        <div class="accordion-body">
+            {{ faq.answer }}
+        </div>
+
+    </div>
+</div>
+
+{% endfor %}
+
 </div>
 
 </div>
+</div>
+
+</div>
+
 {% endblock %}
