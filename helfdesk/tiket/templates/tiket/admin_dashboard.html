@@ -362,26 +362,29 @@ let isFirstRun = true;
     // ── ALERTS (only after first run) ─────────────────────────────
     if (!isFirstRun) {
 
-        document.getElementById("newTicketAlert")
-           alertBox.classList.remove("d-none");
+    const alertBox = document.getElementById("newTicketAlert");
 
-    setTimeout(() => {
-        alertBox.classList.add("fade");   // Bootstrap fade
-        alertBox.classList.remove("show");
+    if (alertBox) {
+        alertBox.classList.remove("d-none");
 
         setTimeout(() => {
-            alertBox.classList.add("d-none"); // fully hide after fade
-        }, 500); // match Bootstrap fade duration
-    }, 5000);
+            alertBox.classList.add("fade");
+            alertBox.classList.remove("show");
 
-        if (hasNewCritical) {
-            const sound = document.getElementById("criticalSound");
-            if (sound) sound.play().catch(() => {});
-
-            const toastEl = document.getElementById("criticalToast");
-            if (toastEl) new bootstrap.Toast(toastEl).show();
-        }
+            setTimeout(() => {
+                alertBox.classList.add("d-none");
+            }, 500);
+        }, 5000);
     }
+
+    if (hasNewCritical) {
+        const sound = document.getElementById("criticalSound");
+        if (sound) sound.play().catch(() => {});
+
+        const toastEl = document.getElementById("criticalToast");
+        if (toastEl) new bootstrap.Toast(toastEl).show();
+    }
+}
 
     // ── ADD NEW ROWS ──────────────────────────────────────────────
   tickets.forEach(ticket => {
