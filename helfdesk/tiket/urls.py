@@ -49,5 +49,6 @@ urlpatterns = [
     path("api/tickets-since/<str:timestamp>/", views.tickets_since),
     path("update-status/<int:ticket_id>/", views.update_status, name="update_status"),
     path("assign-ticket/<int:ticket_id>/", views.assign_ticket, name="assign_ticket"),
+    path("api/ticket-updates/", views.ticket_updates, name="ticket_updates"),
 ]
 

@@ -28,6 +28,7 @@ def is_admin(user):
 
 
 @login_required
+@permission_classes([IsAuthenticated])
 def create_ticket(request):
     if request.method == "POST":
         form = TicketForm(request.POST)
@@ -55,8 +56,6 @@ def ticket_success(request):
 
 @login_required
 def home(request):
-    if not request.user.is_authenticated:
-        return redirect('login')
 
     if request.user.is_staff:
         return redirect('admin_dashboard')
@@ -108,9 +107,12 @@ def update_assignment(request, ticket_id):
         user_id = request.POST.get("assigned_to")
 
         if user_id:
-            ticket.assigned_to_id = user_id
+            user = get_object_or_404(User, id=user_id)
+            ticket.assigned_to = user
+            msg = f"Ticket #{ticket.id} assigned to {user.username}"
         else:
             ticket.assigned_to = None
+            msg = f"Ticket #{ticket.id} unassigned"
 
         ticket.save()
         
@@ -218,26 +220,6 @@ def create_ticket_api(request):
         })
 
     return JsonResponse({"error": "Invalid method"}, status=400)
-
-class TicketListCreateAPIView(generics.ListCreateAPIView):
-    serializer_class = TicketSerializer
-
-    def get_queryset(self):
-        user = self.request.user
-
-        # Admin → see everything
-        if user.is_superuser:
-            return Ticket.objects.all()
-
-        # Staff → see tickets assigned to them
-        if user.is_staff:
-            return Ticket.objects.filter(assigned_to=user)
-
-        # Normal user → see only their own tickets
-        return Ticket.objects.filter(created_by=user)
-
-    def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
         
 class TicketListCreateAPIView(generics.ListCreateAPIView):
 
@@ -263,11 +245,14 @@ class TicketListCreateAPIView(generics.ListCreateAPIView):
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
+        
+@permission_classes([IsAuthenticated])        
 class TicketDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
 
     queryset = Ticket.objects.filter(deleted_at__isnull=True)
     serializer_class = TicketSerializer
     
+@login_required    
 @user_passes_test(lambda u: u.is_superuser)
 def delete_ticket(request, ticket_id):
 
@@ -342,6 +327,7 @@ def latest_ticket(request):
     })
     
 @api_view(["GET"])
+@permission_classes([IsAuthenticated])
 def ticket_stats(request):
 
     stats = Ticket.objects.filter(
@@ -360,6 +346,7 @@ def ticket_stats(request):
     return Response(result)
 
 @api_view(["GET"])
+@permission_classes([IsAuthenticated])
 def activity_feed(request):
 
     activities = TicketActivity.objects.order_by("-created_at")[:10]
@@ -375,6 +362,7 @@ def activity_feed(request):
     return Response(data)
 
 @api_view(["GET"])
+@permission_classes([IsAuthenticated])
 def tickets_since(request, timestamp):
 
     try:
@@ -408,3 +396,15 @@ def tickets_since(request, timestamp):
 
     return Response(data)
 
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def ticket_updates(request):
+    since = request.GET.get("since")
+    qs = Ticket.objects.filter(deleted_at__isnull=True)
+    if since:
+        try:
+            dt = make_aware(datetime.fromtimestamp(float(since)))
+            qs = qs.filter(updated_at__gte=dt)
+        except Exception:
+            pass
+    return Response(list(qs.values("id", "status", "assigned_to_id")))

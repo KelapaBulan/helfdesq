@@ -562,6 +562,33 @@ setInterval(checkForNewTickets, 10000);
 
 });
 
+function syncTicketUpdates() {
+    fetch("/api/ticket-updates/")
+        .then(res => res.json())
+        .then(tickets => {
+            tickets.forEach(ticket => {
+                const statusSelect = document.querySelector(`.status-select[data-id="${ticket.id}"]`);
+                const assignSelect = document.querySelector(`.assign-select[data-id="${ticket.id}"]`);
+
+                if (statusSelect && statusSelect.value !== ticket.status) {
+                    statusSelect.value = ticket.status;
+                    flashRow($(statusSelect).closest("tr"));
+                }
+
+                if (assignSelect && assignSelect.value !== String(ticket.assigned_to_id || "")) {
+                    assignSelect.value = ticket.assigned_to_id || "";
+                    flashRow($(assignSelect).closest("tr"));
+                }
+            });
+        })
+        .catch(err => console.error("Sync error:", err));
+}
+
+setInterval(syncTicketUpdates, 5000);
+syncTicketUpdates();
+
+
+
 function updateStatus(select) {
     const form = select.form;
     const url = form.action;
