@@ -182,16 +182,13 @@ href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css">
 {% if ticket.description|length > 50 %}
 <br>
 
-<button class="btn btn-sm btn-link p-0 mt-1"
-        data-bs-toggle="collapse"
-        data-bs-target="#desc{{ ticket.id }}">
+<button class="btn btn-sm btn-link p-0 mt-1 desc-toggle"
+        data-target="desc{{ ticket.id }}">
     Details
 </button>
 
-<div class="collapse mt-2" id="desc{{ ticket.id }}">
-    <div class="p-2 bg-light rounded">
-        {{ ticket.description }}
-    </div>
+<div id="desc{{ ticket.id }}" style="display:none;" class="mt-2">
+    <div class="p-2 bg-light rounded">{{ ticket.description }}</div>
 </div>
 
 {% endif %}
@@ -405,7 +402,33 @@ let isFirstRun = true;
     `
     : `<span class="text-muted">—</span>`;
 
-    const desc = (ticket.description || "").substring(0, 50);
+
+console.log("ticket.id:", ticket.id); // add this temporarily
+
+const fullDesc = ticket.description || "";
+const shortDesc = fullDesc.substring(0, 50);
+const hasLongDesc = fullDesc.length > 50;
+
+const descId = "desc-" + ticket.id;  // ✅ use a variable, not inline template
+
+const descriptionHtml = `
+<strong>${ticket.title}</strong><br>
+<small class="text-muted">${shortDesc}</small>
+${
+    hasLongDesc
+    ? `
+    <br>
+    <button class="btn btn-sm btn-link p-0 mt-1 desc-toggle"
+            data-target="${descId}">
+        Details
+    </button>
+    <div id="${descId}" style="display:none;" class="mt-2">
+        <div class="p-2 bg-light rounded">${fullDesc}</div>
+    </div>
+    `
+    : ""
+}
+`;
 
    const assignedDisplay = ticket.assigned_to
     ? (typeof ticket.assigned_to === "object"
@@ -416,11 +439,9 @@ let isFirstRun = true;
 const newRowHtml = $(`
 <tr id="ticket-${ticket.id}">
     <td data-order="${ticket.id}">#${ticket.id}</td>
+    
 
-    <td>
-        <strong>${ticket.title}</strong><br>
-        <small class="text-muted">${desc}</small>
-    </td>
+    <td>${descriptionHtml}</td>
 
     <td>${ticket.user || "—"}</td>
     <td>${ticket.department || "—"}</td>
@@ -464,8 +485,6 @@ const newRowHtml = $(`
     if (table) {
         const rowNode = table.row.add(newRowHtml).draw(false).node();
 $(rowNode).addClass("new-ticket");
-
-table.row.add(rowNode).draw(false);
 
         rowNode.id = rowId;
         $(rowNode).addClass("new-ticket");
@@ -561,6 +580,7 @@ function updateStatus(select) {
     .catch(err => console.error(err));
 }
 
+
 // ==============================
 // ✅ DATATABLE (GLOBAL)
 // ==============================
@@ -609,6 +629,19 @@ $(document).on("change", ".status-select", function () {
     ajaxUpdate(`/update-status/${ticketId}/`, { status: value }, () => {
         flashRow(row);
     });
+});
+
+$(document).on("click", ".desc-toggle", function () {
+    const targetId = $(this).data("target");  // e.g. "desc-42"
+    const collapseEl = document.getElementById(targetId);
+    
+    console.log("targetId:", targetId, "found:", collapseEl); // temporary debug
+    
+    if (!collapseEl) return;
+
+    const isVisible = collapseEl.style.display === "block";
+    collapseEl.style.display = isVisible ? "none" : "block";
+    $(this).text(isVisible ? "Details" : "Hide");
 });
 
 // ASSIGN UPDATE
