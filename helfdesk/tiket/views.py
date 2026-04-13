@@ -255,16 +255,13 @@ class TicketDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
 @login_required    
 @user_passes_test(lambda u: u.is_superuser)
 def delete_ticket(request, ticket_id):
-
-    ticket = get_object_or_404(Ticket, id=ticket_id)
-
-    ticket.is_deleted = True
-    ticket.deleted_at = timezone.now()
-    ticket.deleted_by = request.user
-
-    ticket.save()
-
-    return redirect("admin_dashboard")
+    if request.method == "POST" and request.user.is_superuser:
+        ticket = get_object_or_404(Ticket, id=ticket_id)
+        ticket.deleted_at = timezone.now()
+        ticket.deleted_by = request.user
+        ticket.save()
+        return JsonResponse({"success": True})
+    return JsonResponse({"success": False}, status=403)
 
 @login_required
 @user_passes_test(lambda u: u.is_superuser)

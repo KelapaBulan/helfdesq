@@ -255,13 +255,10 @@ data-order="{% if ticket.status == 'OPEN' %}1{% elif ticket.status == 'IN_PROGRE
                     <td>{{ ticket.created_at|date:"M d, Y H:i" }}</td>
 <td>
 {% if user.is_superuser %}
-<form method="post" action="{% url 'delete_ticket' ticket.id %}">
-    {% csrf_token %}
-    <button class="btn btn-sm btn-danger"
-            onclick="return confirm('Delete this ticket?')">
-        Delete
-    </button>
-</form>
+<button class="btn btn-sm btn-danger delete-btn"
+        data-id="{{ ticket.id }}">
+    Delete
+</button>
 {% else %}
 <span class="text-muted">—</span>
 {% endif %}
@@ -391,16 +388,13 @@ let isFirstRun = true;
     if (document.getElementById(rowId)) return;
 
     const deleteColumn = window.isSuperuser
-    ? `
-    <form method="post" action="/delete-ticket/${ticket.id}/">
-        <input type="hidden" name="csrfmiddlewaretoken" value="${getCSRFToken()}">
-        <button class="btn btn-sm btn-danger"
-                onclick="return confirm('Delete this ticket?')">
-            Delete
-        </button>
-    </form>
-    `
-    : `<span class="text-muted">—</span>`;
+? `
+<button class="btn btn-sm btn-danger delete-btn"
+        data-id="${ticket.id}">
+    Delete
+</button>
+`
+: `<span class="text-muted">—</span>`;
 
 
 console.log("ticket.id:", ticket.id); // add this temporarily
@@ -546,12 +540,28 @@ setInterval(checkForNewTickets, 10000);
         feed.innerHTML = "";
 
         data.forEach(a => {
-            feed.innerHTML += `
-                <li class="list-group-item">
-                    <strong>${a.time}</strong> — ${a.message}
-                </li>
-            `;
-        });
+    let displayTime = a.time;
+    try {
+        const parsed = new Date(a.time);
+        if (!isNaN(parsed)) {
+            displayTime = parsed.toLocaleString("en-GB", {
+                timeZone: "Asia/Jakarta",
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+                day: "2-digit",
+                month: "short",
+                year: "numeric",
+                hour12: false
+            });
+        }
+    } catch (e) {}
+    feed.innerHTML += `
+        <li class="list-group-item">
+            <strong>${displayTime}</strong> — ${a.message}
+        </li>
+    `;
+});
 
     })
     .catch(err => console.error("Activity error:", err));
@@ -679,6 +689,21 @@ $(document).on("change", ".assign-select", function () {
 
     ajaxUpdate(`/assign-ticket/${ticketId}/`, { assigned_to: value }, () => {
         flashRow(row);
+    });
+});
+
+$(document).on("click", ".delete-btn", function () {
+    const ticketId = $(this).data("id");
+
+    if (!confirm("Delete this ticket?")) return;
+
+    ajaxUpdate(`/ticket/delete/${ticketId}/`, {}, (response) => {
+        if (response.success) {
+            const row = table.row(`#ticket-${ticketId}`);
+            row.remove().draw(false);
+        } else {
+            alert("Failed to delete ticket.");
+        }
     });
 });
 
