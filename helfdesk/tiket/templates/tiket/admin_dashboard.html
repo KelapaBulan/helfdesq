@@ -114,58 +114,63 @@ href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css">
         <th>ID</th>
         <th>Title</th>
         <th>User</th>
+        <th>Cabang</th>
         <th>Department</th>
         <th>Contact Email</th>
         <th>Priority</th>
         <th>Status</th>
         <th>Assigned To</th>
         <th>Created</th>
+        <th>Print</th>
         <th>Delete</th>
     </tr>
 
                  <!-- FILTER ROW -->
-    <tr>
-        <th></th>
-        <th></th>
-        <th></th>
-        <th></th>
-        <th></th>
+    <!-- FILTER ROW -->
+<tr>
+    <th></th> <!-- ID -->
+    <th></th> <!-- Title -->
+    <th></th> <!-- User -->
+    <th></th> <!-- Cabang -->
+    <th></th> <!-- Department -->
+    <th></th> <!-- Contact Email -->
 
-        <!-- Priority filter -->
-        <th>
-            <select class="form-select form-select-sm column-filter" data-column="5">
-                <option value="">All</option>
-                <option value="CRITICAL">Critical</option>
-                <option value="HIGH">High</option>
-                <option value="MEDIUM">Medium</option>
-                <option value="LOW">Low</option>
-            </select>
-        </th>
+    <!-- Priority filter - column 6 -->
+    <th>
+        <select class="form-select form-select-sm column-filter" data-column="6">
+            <option value="">All</option>
+            <option value="CRITICAL">Critical</option>
+            <option value="HIGH">High</option>
+            <option value="MEDIUM">Medium</option>
+            <option value="LOW">Low</option>
+        </select>
+    </th>
 
-        <!-- Status filter -->
-        <th>
-            <select class="form-select form-select-sm column-filter" data-column="6">
-                <option value="">All</option>
-                <option value="OPEN">Open</option>
-                <option value="IN_PROGRESS">In Progress</option>
-                <option value="RESOLVED">Resolved</option>
-                <option value="CLOSED">Closed</option>
-            </select>
-        </th>
+    <!-- Status filter - column 7 -->
+    <th>
+        <select class="form-select form-select-sm column-filter" data-column="7">
+            <option value="">All</option>
+            <option value="OPEN">Open</option>
+            <option value="IN_PROGRESS">In Progress</option>
+            <option value="RESOLVED">Resolved</option>
+            <option value="CLOSED">Closed</option>
+        </select>
+    </th>
 
-        <!-- Assigned filter -->
-        <th>
-            <select class="form-select form-select-sm column-filter" data-column="7">
-                <option value="">All</option>
-                {% for user in staff_users %}
-                <option value="{{ user.username }}">{{ user.username }}</option>
-                {% endfor %}
-            </select>
-        </th>
+    <!-- Assigned filter - column 8 -->
+    <th>
+        <select class="form-select form-select-sm column-filter" data-column="8">
+            <option value="">All</option>
+            {% for user in staff_users %}
+            <option value="{{ user.username }}">{{ user.username }}</option>
+            {% endfor %}
+        </select>
+    </th>
 
-        <th></th>
-        <th></th>
-    </tr>
+    <th></th> <!-- Created -->
+    <th></th> <!-- Print -->
+    <th></th> <!-- Delete -->
+</tr>
             </thead>
             <tbody id="tickets-table-body">
                 {% for ticket in tickets %}
@@ -196,6 +201,8 @@ href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css">
                     
 
                     <td>{{ ticket.created_by.username }}</td>
+
+                    <td>{{ ticket.created_by.profile.cabang|default:"—" }}</td>
 
                     <td>{{ ticket.department }}</td>
 
@@ -253,6 +260,13 @@ data-order="{% if ticket.status == 'OPEN' %}1{% elif ticket.status == 'IN_PROGRE
 </td>
 
                     <td>{{ ticket.created_at|date:"M d, Y H:i" }}</td>
+                    <td>
+    <a href="{% url 'print_ticket' ticket.id %}"
+       target="_blank"
+       class="btn btn-sm btn-outline-secondary">
+        🖨️ Print
+    </a>
+</td>
 <td>
 {% if user.is_superuser %}
 <button class="btn btn-sm btn-danger delete-btn"
@@ -438,11 +452,12 @@ const newRowHtml = $(`
     <td>${descriptionHtml}</td>
 
     <td>${ticket.user || "—"}</td>
+    <td>${ticket.cabang || "—"}</td>  
     <td>${ticket.department || "—"}</td>
     <td>${ticket.email || "—"}</td>
 
     <td>
-        <span class="badge ${
+        <span class="badge {
             ticket.priority === "CRITICAL" ? "bg-danger" :
             ticket.priority === "HIGH" ? "bg-warning text-dark" :
             ticket.priority === "MEDIUM" ? "bg-info text-dark" :
@@ -471,6 +486,14 @@ const newRowHtml = $(`
     </td>
 
     <td>${ticket.created}</td>
+
+    <td>
+    <a href="/tickets/${ticket.id}/print/"
+       target="_blank"
+       class="btn btn-sm btn-outline-secondary">
+        🖨️ Print
+    </a>
+</td>
 
     <td>${deleteColumn}</td>
 </tr>
@@ -633,8 +656,8 @@ $(document).ready(function(){
     autoWidth: false,        // ✅ important
     responsive: true,        // ✅ fixes layout shifts
     columnDefs: [
-        { orderable: false, targets: [9] }
-    ]
+    { orderable: false, targets: [10, 11] }  // Print and Delete
+]
 });
 
     }
@@ -650,10 +673,9 @@ $(document).ready(function(){
 
     // STATUS FILTER
     $('#statusFilter').on('change', function(){
-
-        const value = $(this).val();
-        table.column(6).search(value || '').draw();
-    });
+    const value = $(this).val();
+    table.column(7).search(value || '').draw();  // was 6, now 7
+});
 
 });
 

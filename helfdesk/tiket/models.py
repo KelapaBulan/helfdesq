@@ -95,5 +95,23 @@ class TicketActivity(models.Model):
 
     def __str__(self):
         return self.message
+    
+class Cabang(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+
+    def __str__(self):
+        return self.name
+
+class UserProfile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="profile")
+    cabang = models.ForeignKey(
+        Cabang,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
+
+    def __str__(self):
+        return f"{self.user.username} - {self.cabang}"
 
 # Create your models here.

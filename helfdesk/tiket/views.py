@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect , get_object_or_404
 from django.contrib.auth.decorators import login_required , user_passes_test
 from .forms import TicketForm , RegisterForm
-from .models import Ticket , FAQ ,TicketActivity
+from .models import Ticket , FAQ ,TicketActivity , UserProfile, Cabang
 from django.contrib.auth.models import User
 from django.contrib.auth import login
 from django.contrib import messages
@@ -193,8 +193,12 @@ def register(request):
         form = RegisterForm(request.POST)
         if form.is_valid():
             user = form.save()
-            login(request, user)  # Auto login after register
-            return redirect("my_tickets")  # or homepage
+            UserProfile.objects.create(
+                user=user,
+                cabang=form.cleaned_data["cabang"]
+            )
+            login(request, user)
+            return redirect("my_tickets")
     else:
         form = RegisterForm()
 
@@ -387,6 +391,7 @@ def tickets_since(request, timestamp):
     "priority": t.priority,
     "status": t.status,
     "assigned_to": t.assigned_to.username if t.assigned_to else None,
+    "cabang": t.created_by.profile.cabang.name if hasattr(t.created_by, 'profile') and t.created_by.profile.cabang else None,
     "created": localtime(t.created_at).strftime("%b %d, %Y %H:%M"),
     "timestamp": t.created_at.timestamp()
 })
@@ -405,3 +410,13 @@ def ticket_updates(request):
         except Exception:
             pass
     return Response(list(qs.values("id", "status", "assigned_to_id")))
+
+@login_required
+def print_ticket(request, ticket_id):
+    ticket = get_object_or_404(Ticket, id=ticket_id, deleted_at__isnull=True)
+
+    # Users can only print their own tickets
+    if not request.user.is_staff and ticket.created_by != request.user:
+        return redirect("home")
+
+    return render(request, "tiket/print_ticket.html", {"ticket": ticket})

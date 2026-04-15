@@ -50,5 +50,6 @@ urlpatterns = [
     path("update-status/<int:ticket_id>/", views.update_status, name="update_status"),
     path("assign-ticket/<int:ticket_id>/", views.assign_ticket, name="assign_ticket"),
     path("api/ticket-updates/", views.ticket_updates, name="ticket_updates"),
+    path("tickets/<int:ticket_id>/print/", views.print_ticket, name="print_ticket"),
 ]
 

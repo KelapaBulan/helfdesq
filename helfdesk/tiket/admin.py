@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Ticket, Department
+from .models import Ticket, Department ,  FAQ, TicketActivity, Cabang, UserProfile
 from .models import FAQ
 
 
@@ -42,3 +42,11 @@ class TicketAdmin(admin.ModelAdmin):
     )
 
     autocomplete_fields = ('created_by', 'assigned_to')
+    
+@admin.register(Cabang)
+class CabangAdmin(admin.ModelAdmin):
+    list_display = ["name"]
+
+@admin.register(UserProfile)
+class UserProfileAdmin(admin.ModelAdmin):
+    list_display = ["user", "cabang"]

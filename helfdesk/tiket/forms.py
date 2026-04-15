@@ -1,5 +1,5 @@
 from django import forms
-from .models import Ticket
+from .models import Ticket , UserProfile, Cabang
 from django.contrib.auth.models import User
 from django.contrib.auth.forms import UserCreationForm
 
@@ -30,11 +30,15 @@ class TicketForm(forms.ModelForm):
         
 class RegisterForm(UserCreationForm):
     email = forms.EmailField(required=True)
+    cabang = forms.ModelChoiceField(
+        queryset=Cabang.objects.all(),
+        widget=forms.Select(attrs={"class": "form-select"}),
+        empty_label="— Select Cabang —"
+    )
 
     class Meta:
         model = User
         fields = ["username", "email", "password1", "password2"]
-
         widgets = {
             "username": forms.TextInput(attrs={
                 "class": "form-control",
@@ -48,8 +52,6 @@ class RegisterForm(UserCreationForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
-        # Add Bootstrap classes to password fields
         self.fields["password1"].widget.attrs.update({
             "class": "form-control",
             "placeholder": "Enter password"
