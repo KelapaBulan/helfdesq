@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block title %}Analytics{% endblock %}
+
+{% block content %}
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        .chart-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    max-width: 1000px;
+    margin: 40px auto;
+}
+
+.chart-box {
+    background: #fff;
+    padding: 16px;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.chart-box canvas {
+    width: 100% !important;
+    height: 300px !important;
+}
+
+/* Make last chart full width */
+.full-width {
+    grid-column: span 2;
+}
+
+@media (max-width: 768px) {
+    .chart-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .full-width {
+        grid-column: span 1;
+    }
+}
+    </style>
+
+<div class="chart-grid">
+
+    <div class="chart-box">
+    <h6>Ticket Volume</h6>
+    <canvas id="volumeChart"></canvas>
+</div>
+
+    <div class="chart-box">
+        <h6>Tickets per Department</h6> 
+        <canvas id="deptChart"></canvas>
+    </div>
+
+    <div class="chart-box full-width">
+        <canvas id="avgChart"></canvas>
+    </div>
+
+</div>
+
+<script>
+/* =========================
+   1. Ticket Volume
+========================= */
+fetch("/api/ticket-volume/")
+.then(res => res.json())
+.then(data => {
+    new Chart(document.getElementById("volumeChart"), {
+        type: "line",
+        data: {
+            labels: data.map(d => d.date),
+            datasets: [{
+                label: "Tickets per Day",
+                data: data.map(d => d.count),
+                tension: 0.3
+            }]
+        }
+    });
+});
+
+
+/* =========================
+   2. Tickets per Department
+========================= */
+fetch("/api/tickets-per-department/")
+.then(res => res.json())
+.then(data => {
+    new Chart(document.getElementById("deptChart"), {
+        type: "pie",
+        data: {
+            labels: data.map(d => d.department || "Unassigned"),
+            datasets: [{
+                data: data.map(d => d.count)
+            }]
+        }
+    });
+});
+
+
+/* =========================
+   3. Avg Resolution Time
+========================= */
+fetch("/api/avg-resolution-time/")
+.then(res => res.json())
+.then(data => {
+    new Chart(document.getElementById("avgChart"), {
+        type: "bar",
+        data: {
+            labels: ["Average Resolution Time"],
+            datasets: [{
+                label: "Hours",
+                data: [data.avg_hours]
+            }]
+        }
+    });
+});
+</script>
+
+{% endblock %}

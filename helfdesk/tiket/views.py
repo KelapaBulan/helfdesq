@@ -17,8 +17,11 @@ from django.utils import timezone
 from rest_framework.decorators import api_view , permission_classes
 from rest_framework.response import Response
 from datetime import datetime , timedelta
-from django.utils.timezone import make_aware ,localtime
+from django.utils.timezone import make_aware ,localtime , now
 from django.utils import timezone
+from django.core.mail import send_mail
+from .models import Ticket, FAQ, TicketActivity, UserProfile, Cabang, TicketComment, TicketAttachment
+from django.db.models import Count, Avg, F, ExpressionWrapper, DurationField
 
 
 
@@ -68,15 +71,13 @@ def test(request):
 @login_required
 def my_tickets(request):
     tickets = (
-    Ticket.objects
-    .filter(created_by=request.user, deleted_at__isnull=True)
-    .select_related("assigned_to", "department")
-    .order_by("-created_at")
-)
-
-    return render(request, "tiket/my_tickets.html", {
-        "tickets": tickets
-    })
+        Ticket.objects
+        .filter(created_by=request.user, deleted_at__isnull=True)
+        .select_related("assigned_to", "department")
+        .prefetch_related("comments__author", "attachments")
+        .order_by("-created_at")
+    )
+    return render(request, "tiket/my_tickets.html", {"tickets": tickets})
     
 @login_required
 @user_passes_test(lambda u: u.is_superuser)
@@ -131,7 +132,6 @@ def update_assignment(request, ticket_id):
     
 @login_required
 def user_dashboard(request):
-
     tickets = Ticket.objects.filter(
         created_by=request.user,
         deleted_at__isnull=True
@@ -139,9 +139,16 @@ def user_dashboard(request):
 
     faqs = FAQ.objects.all()
 
+    # Recent activity on the user's tickets
+    recent_activity = TicketActivity.objects.filter(
+        ticket__created_by=request.user,
+        ticket__deleted_at__isnull=True
+    ).select_related("ticket").order_by("-created_at")[:10]
+
     return render(request, "tiket/user_dashboard.html", {
         "tickets": tickets,
-        "faqs": faqs
+        "faqs": faqs,
+        "recent_activity": recent_activity,
     })
     
 
@@ -149,41 +156,56 @@ def user_dashboard(request):
 @permission_classes([IsAuthenticated])
 def assign_ticket(request, ticket_id):
     ticket = get_object_or_404(Ticket, id=ticket_id)
-
     user_id = request.data.get("assigned_to")
 
     if user_id:
         user = User.objects.get(id=user_id)
         ticket.assigned_to = user
-
         message = f"Ticket #{ticket.id} assigned to {user.username}"
+        send_ticket_email(
+            subject=f"[Ticket #{ticket.id}] Assigned to you — {ticket.title}",
+            message=f"You have been assigned to ticket #{ticket.id}: {ticket.title}.",
+            recipient_email=user.email
+        )
+        # Also notify the ticket creator
+        send_ticket_email(
+            subject=f"[Ticket #{ticket.id}] Your ticket has been assigned",
+            message=f"Your ticket '{ticket.title}' has been assigned to {user.username}.",
+            recipient_email=ticket.contact_email or ticket.created_by.email
+        )
     else:
         ticket.assigned_to = None
         message = f"Ticket #{ticket.id} unassigned"
 
     ticket.save()
-
-    TicketActivity.objects.create(
-        ticket=ticket,
-        message=message
-    )
-
+    TicketActivity.objects.create(ticket=ticket, message=message)
     return Response({"success": True})
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def update_status(request, ticket_id):
     ticket = get_object_or_404(Ticket, id=ticket_id)
-
     new_status = request.data.get("status")
 
     if new_status in dict(Ticket.Status.choices):
         ticket.status = new_status
-        ticket.save()
+
+        if new_status == "RESOLVED":
+            ticket.resolved_at = timezone.now()
+        else:
+            ticket.resolved_at = None
+
+        ticket.save()  # ← always save
 
         TicketActivity.objects.create(
             ticket=ticket,
             message=f"Ticket #{ticket.id} status changed to {ticket.status}"
+        )
+
+        send_ticket_email(
+            subject=f"[Ticket #{ticket.id}] Status updated — {ticket.title}",
+            message=f"Your ticket '{ticket.title}' status has been updated to: {new_status}.",
+            recipient_email=ticket.contact_email or ticket.created_by.email
         )
 
     return Response({"success": True})
@@ -420,3 +442,202 @@ def print_ticket(request, ticket_id):
         return redirect("home")
 
     return render(request, "tiket/print_ticket.html", {"ticket": ticket})
+
+def send_ticket_email(subject, message, recipient_email):
+    if recipient_email:
+        try:
+            send_mail(
+                subject,
+                message,
+                None,  # uses DEFAULT_FROM_EMAIL from settings
+                [recipient_email],
+                fail_silently=True
+            )
+        except Exception as e:
+            print(f"Email error: {e}")
+
+
+# ==============================
+# ADD COMMENT
+# ==============================
+@login_required
+def add_comment(request, ticket_id):
+    ticket = get_object_or_404(Ticket, id=ticket_id, deleted_at__isnull=True)
+
+    # Only ticket owner or staff can comment
+    if not request.user.is_staff and ticket.created_by != request.user:
+        return redirect("home")
+
+    if request.method == "POST":
+        body = request.POST.get("body", "").strip()
+        if body:
+            TicketComment.objects.create(
+                ticket=ticket,
+                author=request.user,
+                body=body
+            )
+            TicketActivity.objects.create(
+                ticket=ticket,
+                message=f"Comment added by {request.user.username} on Ticket #{ticket.id}"
+            )
+
+            # Notify the other party by email
+            if request.user == ticket.created_by:
+                # User commented — notify assigned staff
+                recipient = ticket.assigned_to.email if ticket.assigned_to else None
+            else:
+                # Staff commented — notify ticket owner
+                recipient = ticket.contact_email or ticket.created_by.email
+
+            send_ticket_email(
+                subject=f"[Ticket #{ticket.id}] New comment — {ticket.title}",
+                message=f"{request.user.username} added a comment:\n\n{body}\n\nTicket: {ticket.title}",
+                recipient_email=recipient
+            )
+
+    if request.user.is_staff:
+        return redirect("admin_dashboard")
+    return redirect("my_tickets")
+
+
+# ==============================
+# ADD ATTACHMENT
+# ==============================
+@login_required
+def add_attachment(request, ticket_id):
+    ticket = get_object_or_404(Ticket, id=ticket_id, deleted_at__isnull=True)
+
+    if not request.user.is_staff and ticket.created_by != request.user:
+        return redirect("home")
+
+    if request.method == "POST" and request.FILES.get("file"):
+        TicketAttachment.objects.create(
+            ticket=ticket,
+            uploaded_by=request.user,
+            file=request.FILES["file"]
+        )
+        TicketActivity.objects.create(
+            ticket=ticket,
+            message=f"Attachment uploaded by {request.user.username} on Ticket #{ticket.id}"
+        )
+
+    if request.user.is_staff:
+        return redirect("ticket_detail", ticket_id=ticket.id)
+    return redirect("my_tickets")
+
+
+# ==============================
+# CANCEL TICKET (user only)
+# ==============================
+@login_required
+def cancel_ticket(request, ticket_id):
+    ticket = get_object_or_404(Ticket, id=ticket_id, deleted_at__isnull=True)
+
+    # Only the ticket owner can cancel, and only if not already closed/resolved
+    if ticket.created_by != request.user:
+        return redirect("home")
+
+    if ticket.status in ["CLOSED", "RESOLVED"]:
+        messages.error(request, "This ticket cannot be cancelled.")
+        return redirect("my_tickets")
+
+    if request.method == "POST":
+        ticket.status = "CLOSED"
+        ticket.save()
+
+        TicketActivity.objects.create(
+            ticket=ticket,
+            message=f"Ticket #{ticket.id} cancelled by {request.user.username}"
+        )
+
+        send_ticket_email(
+            subject=f"[Ticket #{ticket.id}] Cancelled — {ticket.title}",
+            message=f"Ticket #{ticket.id} '{ticket.title}' has been cancelled by {request.user.username}.",
+            recipient_email=ticket.assigned_to.email if ticket.assigned_to else None
+        )
+
+        messages.success(request, "Ticket cancelled successfully.")
+
+    return redirect("my_tickets")
+
+@api_view(["GET"])
+def ticket_volume(request):
+    days = int(request.GET.get("days", 7))
+    data = []
+    for i in range(days):
+        day = now().date() - timedelta(days=i)
+        count = Ticket.objects.filter(created_at__date=day).count()
+        data.append({"date": day.strftime("%Y-%m-%d"), "count": count})
+    return Response(list(reversed(data)))
+
+
+# 2. Tickets per department
+@api_view(["GET"])
+def tickets_per_department(request):
+    data = Ticket.objects.values("department__name").annotate(count=Count("id"))
+    return Response([{"department": d["department__name"], "count": d["count"]} for d in data])
+
+
+# 3. Avg resolution time (in hours)
+@api_view(["GET"])
+def avg_resolution_time(request):
+    resolved = Ticket.objects.filter(resolved_at__isnull=False)
+
+    duration = ExpressionWrapper(
+        F("resolved_at") - F("created_at"),
+        output_field=DurationField()
+    )
+
+    avg = resolved.annotate(duration=duration).aggregate(avg=Avg("duration"))
+
+    hours = avg["avg"].total_seconds() / 3600 if avg["avg"] else 0
+
+    return Response({"avg_hours": round(hours, 2)})
+
+def analytics_page(request):
+    return render(request, "tiket/analytics.html")
+
+@login_required
+def ticket_detail(request, ticket_id):
+    ticket = get_object_or_404(
+        Ticket.objects.select_related(
+            "created_by", "assigned_to", "department",
+            "created_by__profile__cabang"
+        ).prefetch_related(
+            "comments__author",
+            "attachments__uploaded_by",
+            "ticketactivity_set"
+        ),
+        id=ticket_id,
+        deleted_at__isnull=True
+    )
+
+    staff_users = User.objects.filter(is_staff=True)
+
+    if request.method == "POST":
+        body = request.POST.get("body", "").strip()
+        if body:
+            TicketComment.objects.create(
+                ticket=ticket,
+                author=request.user,
+                body=body
+            )
+            TicketActivity.objects.create(
+                ticket=ticket,
+                message=f"Comment added by {request.user.username} on Ticket #{ticket.id}"
+            )
+            send_ticket_email(
+                subject=f"[Ticket #{ticket.id}] New comment — {ticket.title}",
+                message=f"{request.user.username} added a comment:\n\n{body}\n\nTicket: {ticket.title}",
+                recipient_email=ticket.contact_email or ticket.created_by.email
+            )
+            return redirect("ticket_detail", ticket_id=ticket.id)
+
+    return render(request, "tiket/ticket_detail.html", {
+        "ticket": ticket,
+        "staff_users": staff_users,
+        "status_choices": Ticket.Status.choices,
+        "comments": ticket.comments.order_by("created_at"),
+        "attachments": ticket.attachments.order_by("uploaded_at"),
+        "activities": ticket.ticketactivity_set.order_by("-created_at")[:20],
+    })

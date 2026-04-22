@@ -1,0 +1,310 @@
+{% extends "base.html" %}
+{% block title %}Ticket #{{ ticket.id }}{% endblock %}
+{% block content %}
+
+<div class="container-fluid">
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-2">
+        <div>
+            <a href="{% url 'admin_dashboard' %}" class="btn btn-sm btn-outline-secondary mb-2">
+                ← Back to Dashboard
+            </a>
+            <h4 class="mb-0 fw-bold">
+                #{{ ticket.id }} — {{ ticket.title }}
+            </h4>
+            <small class="text-muted">
+                Submitted by <strong>{{ ticket.created_by.username }}</strong>
+                ({{ ticket.created_by.profile.cabang|default:"No cabang" }})
+                on {{ ticket.created_at|date:"M d, Y H:i" }}
+            </small>
+        </div>
+        <a href="{% url 'print_ticket' ticket.id %}"
+           target="_blank"
+           class="btn btn-outline-secondary btn-sm">
+            🖨️ Print
+        </a>
+    </div>
+
+    <div class="row g-4">
+
+        <!-- LEFT: Main info + Comments + Attachments -->
+        <div class="col-lg-8">
+
+            <!-- Ticket Info -->
+            <div class="card shadow-sm border-2 mb-4">
+                <div class="card-body">
+                    <h6 class="fw-semibold mb-3">Ticket Details</h6>
+                    <div class="row g-3">
+                        <div class="col-sm-6">
+                            <div class="text-muted small">Department</div>
+                            <div>{{ ticket.department|default:"—" }}</div>
+                        </div>
+                        <div class="col-sm-6">
+                            <div class="text-muted small">Contact Email</div>
+                            <div>{{ ticket.contact_email|default:"—" }}</div>
+                        </div>
+                        <div class="col-sm-6">
+                            <div class="text-muted small">Priority</div>
+                            <div>
+                                {% if ticket.priority == "LOW" %}
+                                    <span class="badge bg-secondary">Low</span>
+                                {% elif ticket.priority == "MEDIUM" %}
+                                    <span class="badge bg-info text-dark">Medium</span>
+                                {% elif ticket.priority == "HIGH" %}
+                                    <span class="badge bg-warning text-dark">High</span>
+                                {% elif ticket.priority == "CRITICAL" %}
+                                    <span class="badge bg-danger">Critical</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-sm-6">
+                            <div class="text-muted small">Status</div>
+                            <div>
+                                {% if ticket.status == "OPEN" %}
+                                    <span class="badge bg-warning text-dark">Open</span>
+                                {% elif ticket.status == "IN_PROGRESS" %}
+                                    <span class="badge bg-primary">In Progress</span>
+                                {% elif ticket.status == "RESOLVED" %}
+                                    <span class="badge bg-success">Resolved</span>
+                                {% elif ticket.status == "CLOSED" %}
+                                    <span class="badge bg-dark">Closed</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <div class="text-muted small">Description</div>
+                            <div class="p-3 bg-light rounded mt-1">
+                                {{ ticket.description|linebreaks }}
+                            </div>
+                        </div>
+                        {% if ticket.resolution_notes %}
+                        <div class="col-12">
+                            <div class="text-muted small">Resolution Notes</div>
+                            <div class="p-3 bg-light rounded mt-1">
+                                {{ ticket.resolution_notes|linebreaks }}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Comments -->
+            <div class="card shadow-sm border-2 mb-4">
+                <div class="card-body">
+                    <h6 class="fw-semibold mb-3">
+                        💬 Comments
+                        <span class="badge bg-secondary ms-1">{{ comments.count }}</span>
+                    </h6>
+
+                    {% if comments %}
+                        {% for comment in comments %}
+                        <div class="d-flex gap-3 mb-3">
+                            <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center flex-shrink-0"
+                                 style="width:36px;height:36px;font-size:13px;font-weight:500;">
+                                {{ comment.author.username|slice:":2"|upper }}
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <strong class="small">{{ comment.author.username }}</strong>
+                                    <small class="text-muted">
+                                        {{ comment.created_at|date:"M d, Y H:i" }}
+                                    </small>
+                                </div>
+                                <div class="p-2 bg-light rounded small">
+                                    {{ comment.body|linebreaks }}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted small">No comments yet.</p>
+                    {% endif %}
+
+                    <!-- Add comment form -->
+                    <form method="post" class="mt-3">
+                        {% csrf_token %}
+                        <div class="mb-2">
+                            <textarea name="body"
+                                      class="form-control"
+                                      rows="3"
+                                      placeholder="Write a comment..."></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-sm">
+                            Post Comment
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Attachments -->
+            <div class="card shadow-sm border-2 mb-4">
+                <div class="card-body">
+                    <h6 class="fw-semibold mb-3">
+                        📎 Attachments
+                        <span class="badge bg-secondary ms-1">{{ attachments.count }}</span>
+                    </h6>
+
+                    {% if attachments %}
+                        <ul class="list-group list-group-flush mb-3">
+                            {% for att in attachments %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                <div>
+                                    <a href="{{ att.file.url }}" target="_blank" class="text-decoration-none">
+                                        📄 {{ att.file.name|slice:"20:" }}
+                                    </a>
+                                    <small class="text-muted ms-2">
+                                        by {{ att.uploaded_by.username }}
+                                        · {{ att.uploaded_at|date:"M d, Y H:i" }}
+                                    </small>
+                                </div>
+                                <a href="{{ att.file.url }}"
+                                   download
+                                   class="btn btn-sm btn-outline-secondary">
+                                    ↓
+                                </a>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="text-muted small mb-3">No attachments yet.</p>
+                    {% endif %}
+
+                    <!-- Upload form -->
+                    <form method="post"
+                          action="{% url 'add_attachment' ticket.id %}"
+                          enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <div class="input-group">
+                            <input type="file" name="file" class="form-control" required>
+                            <button class="btn btn-outline-secondary" type="submit">
+                                Upload
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- RIGHT: Sidebar -->
+<div class="col-lg-4">
+
+    {% if request.user.is_staff %}
+    <!-- Quick Actions -->
+    <div class="card shadow-sm border-2 mb-4">
+        <div class="card-body">
+            <h6 class="fw-semibold mb-3">Quick Actions</h6>
+
+            <div class="mb-3">
+                <label class="form-label small text-muted">Change Status</label>
+                <select class="form-select form-select-sm status-select"
+                        data-id="{{ ticket.id }}">
+                    {% for value, label in status_choices %}
+                    <option value="{{ value }}"
+                        {% if ticket.status == value %}selected{% endif %}>
+                        {{ label }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label small text-muted">Assign To</label>
+                <select class="form-select form-select-sm assign-select"
+                        data-id="{{ ticket.id }}">
+                    <option value="">Unassigned</option>
+                    {% for user in staff_users %}
+                    <option value="{{ user.id }}"
+                        {% if ticket.assigned_to == user %}selected{% endif %}>
+                        {{ user.username }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <a href="{% url 'print_ticket' ticket.id %}"
+               target="_blank"
+               class="btn btn-outline-secondary btn-sm w-100">
+                🖨️ Print Ticket
+            </a>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Activity Log — visible to everyone -->
+    <div class="card shadow-sm border-2 mb-4">
+        <div class="card-body">
+            <h6 class="fw-semibold mb-3">📋 Activity Log</h6>
+            {% if activities %}
+                <ul class="list-group list-group-flush">
+                    {% for activity in activities %}
+                    <li class="list-group-item px-0 small">
+                        <div class="text-muted" style="font-size:11px;">
+                            {{ activity.created_at|date:"M d, Y H:i" }}
+                        </div>
+                        {{ activity.message }}
+                    </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p class="text-muted small">No activity yet.</p>
+            {% endif %}
+        </div>
+    </div>
+
+        </div>
+    </div>
+</div>
+
+{% csrf_token %}
+
+<script>
+function ajaxUpdate(url, data, onSuccess) {
+    fetch(url, {
+        method: "POST",
+        headers: {
+            "X-CSRFToken": document.querySelector('[name=csrfmiddlewaretoken]').value,
+            "Content-Type": "application/x-www-form-urlencoded"
+        },
+        body: new URLSearchParams(data)
+    })
+    .then(res => res.json())
+    .then(response => { if (onSuccess) onSuccess(response); })
+    .catch(err => console.error("AJAX error:", err));
+}
+
+document.querySelector(".status-select").addEventListener("change", function () {
+    ajaxUpdate(`/update-status/${this.dataset.id}/`, { status: this.value }, () => {
+        location.reload();
+    });
+});
+
+document.querySelector(".assign-select").addEventListener("change", function () {
+    ajaxUpdate(`/assign-ticket/${this.dataset.id}/`, { assigned_to: this.value }, () => {
+        location.reload();
+    });
+});
+
+const statusSelect = document.querySelector(".status-select");
+const assignSelect = document.querySelector(".assign-select");
+
+if (statusSelect) {
+    statusSelect.addEventListener("change", function () {
+        ajaxUpdate(`/update-status/${this.dataset.id}/`, { status: this.value }, () => {
+            location.reload();
+        });
+    });
+}
+
+if (assignSelect) {
+    assignSelect.addEventListener("change", function () {
+        ajaxUpdate(`/assign-ticket/${this.dataset.id}/`, { assigned_to: this.value }, () => {
+            location.reload();
+        });
+    });
+}
+</script>
+
+{% endblock %}

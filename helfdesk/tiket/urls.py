@@ -5,6 +5,8 @@ from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
 )
+from django.conf import settings
+from django.conf.urls.static import static
 
 urlpatterns = [
     path('', views.home, name='home'),
@@ -18,12 +20,6 @@ urlpatterns = [
     views.update_assignment,
     name="update_assignment"
     ),
-    path("tickets/assign/<int:ticket_id>/",
-     views.assign_ticket,
-     name="assign_ticket"),
-    path("tickets/status/<int:ticket_id>/",
-     views.update_status,
-     name="update_status"),
     path("register/", views.register, name="register"),
     path('api/create-ticket/', views.create_ticket_api),
     path("api/tickets/", TicketListCreateAPIView.as_view(), name="api_tickets"),
@@ -50,6 +46,14 @@ urlpatterns = [
     path("update-status/<int:ticket_id>/", views.update_status, name="update_status"),
     path("assign-ticket/<int:ticket_id>/", views.assign_ticket, name="assign_ticket"),
     path("api/ticket-updates/", views.ticket_updates, name="ticket_updates"),
+    path("analytics/", views.analytics_page, name="analytics"),
+    path("api/ticket-volume/", views.ticket_volume),
+    path("api/tickets-per-department/", views.tickets_per_department),
+    path("api/avg-resolution-time/", views.avg_resolution_time),
     path("tickets/<int:ticket_id>/print/", views.print_ticket, name="print_ticket"),
-]
+    path("tickets/<int:ticket_id>/comment/", views.add_comment, name="add_comment"),
+    path("tickets/<int:ticket_id>/attach/", views.add_attachment, name="add_attachment"),
+    path("tickets/<int:ticket_id>/cancel/", views.cancel_ticket, name="cancel_ticket"),
+    path("tickets/<int:ticket_id>/detail/", views.ticket_detail, name="ticket_detail"),
+] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 

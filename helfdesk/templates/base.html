@@ -35,7 +35,7 @@ href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css">
          body {
         background:
         linear-gradient(rgba(255,255,255,0.85), rgba(255,255,255,0.85)),
-        url("{% static 'images/bg.jpg' %}") center center no-repeat;
+        /* url("{% static 'images/bg.jpg' %}") center center no-repeat; */
 
     background-size: 40%;
     background-attachment: fixed;
@@ -241,10 +241,16 @@ document.addEventListener("DOMContentLoaded", function () {
     <span class="menu-text">Create Ticket</span>
 </a>
 
+<a href="{% url 'analytics' %}" class="d-flex align-items-center gap-2">
+    <i class="bi bi-graph-up"></i>
+    <span class="menu-text">Analytics</span>
+</a>
+
 <a href="{% url 'deleted_tickets' %}" class="d-flex align-items-center gap-2">
     <i class="bi bi-trash"></i>
     <span class="menu-text">Deleted Tickets</span>
 </a>
+
 
     {% else %}
         <a href="/tickets/create/" class="d-flex align-items-center gap-2">

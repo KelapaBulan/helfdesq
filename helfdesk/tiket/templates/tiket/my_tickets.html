@@ -17,7 +17,9 @@
                     <th>Priority</th>
                     <th>Status</th>
                     <th>Assigned To</th>
+                    <th>View</th>
                     <th>Print</th>
+                    <th>Cancel</th>
                     <th>Created</th>
                 </tr>
             </thead>
@@ -67,12 +69,34 @@
                         {% endif %}
                     </td>
 
-                    <td>
-                    <a href="{% url 'print_ticket' ticket.id %}"
-   target="_blank"
-   class="btn btn-sm btn-outline-secondary">
-    🖨️ Print
-</a>
+                    <!-- COMMENTS & ATTACHMENTS -->
+<td>
+    <a href="{% url 'ticket_detail' ticket.id %}"
+       class="btn btn-sm btn-outline-primary">
+        View
+    </a>
+</td>
+
+<!-- PRINT -->
+<td>
+    <a href="{% url 'print_ticket' ticket.id %}"
+       target="_blank"
+       class="btn btn-sm btn-outline-secondary">
+        🖨️ Print
+    </a>
+</td>
+
+<!-- CANCEL -->
+<td>
+    {% if ticket.status != "CLOSED" and ticket.status != "RESOLVED" %}
+    <form method="post" action="{% url 'cancel_ticket' ticket.id %}"
+          onsubmit="return confirm('Cancel this ticket?')">
+        {% csrf_token %}
+        <button class="btn btn-sm btn-outline-danger">Cancel</button>
+    </form>
+    {% else %}
+    <span class="text-muted">—</span>
+    {% endif %}
 </td>
 
                     <td>

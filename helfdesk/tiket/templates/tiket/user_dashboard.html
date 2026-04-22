@@ -1,53 +1,110 @@
 {% extends "base.html" %}
-
-{% block title %}User Dashboard{% endblock %}
-
+{% block title %}Dashboard{% endblock %}
 {% block content %}
 
-<div class="container-fluid min-vh-100">
+<div class="container-fluid">
 
-<div class="row">
-    <div class="col text-center">
-        <h2>Frequently Asked Questions</h2>
+    <!-- Welcome Banner -->
+    <div class="card shadow-sm border-0 mb-4"
+         style="background: linear-gradient(135deg, #0d6efd15, #0d6efd05);">
+        <div class="card-body d-flex justify-content-between align-items-center flex-wrap gap-3">
+            <div>
+                <h4 class="fw-bold mb-1">👋 Welcome back, {{ request.user.username }}</h4>
+                <div class="text-muted small">
+                    {% if request.user.profile.cabang %}
+                        🏢 {{ request.user.profile.cabang }}
+                    {% endif %}
+                    &nbsp;·&nbsp;
+                    {{ request.user.email|default:"No email set" }}
+                </div>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="{% url 'create_ticket' %}" class="btn btn-primary btn-sm">
+                    + New Ticket
+                </a>
+                <a href="{% url 'my_tickets' %}" class="btn btn-outline-secondary btn-sm">
+                    My Tickets
+                </a>
+            </div>
+        </div>
     </div>
-</div>
 
-<div class="card shadow-sm mt-4">
-    <div class="card-body">
-        <h4 class="mb-3">Help & FAQ</h4>
+    <div class="row g-4">
 
-<div class="accordion" id="faqAccordion">
+        <!-- LEFT: Recent Activity -->
+        <div class="col-lg-6">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body">
+                    <h6 class="fw-semibold mb-3">🔔 Recent Updates on Your Tickets</h6>
 
-{% for faq in faqs %}
+                    {% if recent_activity %}
+                        <ul class="list-group list-group-flush">
+                            {% for activity in recent_activity %}
+                            <li class="list-group-item px-0">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <div class="small">{{ activity.message }}</div>
+                                        <a href="{% url 'ticket_detail' activity.ticket.id %}"
+                                           class="text-decoration-none"
+                                           style="font-size:11px;">
+                                            View Ticket #{{ activity.ticket.id }} →
+                                        </a>
+                                    </div>
+                                    <small class="text-muted ms-3 text-nowrap"
+                                           style="font-size:11px;">
+                                        {{ activity.created_at|date:"M d, H:i" }}
+                                    </small>
+                                </div>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <div class="text-muted small py-3 text-center">
+                            No activity yet. Submit a ticket to get started.
+                        </div>
+                    {% endif %}
 
-<div class="accordion-item">
-    <h2 class="accordion-header">
-        <button class="accordion-button {% if not forloop.first %}collapsed{% endif %}"
-                type="button"
-                data-bs-toggle="collapse"
-                data-bs-target="#faq{{ faq.id }}">
-            {{ faq.question }}
-        </button>
-    </h2>
+                </div>
+            </div>
+        </div>
 
-    <div id="faq{{ faq.id }}"
-         class="accordion-collapse collapse {% if forloop.first %}show{% endif %}"
-         data-bs-parent="#faqAccordion">
+        <!-- RIGHT: FAQ -->
+        <div class="col-lg-6">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body">
+                    <h6 class="fw-semibold mb-3">❓ Frequently Asked Questions</h6>
 
-        <div class="accordion-body">
-            {{ faq.answer }}
+                    {% if faqs %}
+                    <div class="accordion accordion-flush" id="faqAccordion">
+                        {% for faq in faqs %}
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button {% if not forloop.first %}collapsed{% endif %} small"
+                                        type="button"
+                                        data-bs-toggle="collapse"
+                                        data-bs-target="#faq{{ faq.id }}">
+                                    {{ faq.question }}
+                                </button>
+                            </h2>
+                            <div id="faq{{ faq.id }}"
+                                 class="accordion-collapse collapse {% if forloop.first %}show{% endif %}"
+                                 data-bs-parent="#faqAccordion">
+                                <div class="accordion-body small text-muted">
+                                    {{ faq.answer }}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                        <p class="text-muted small">No FAQs available yet.</p>
+                    {% endif %}
+
+                </div>
+            </div>
         </div>
 
     </div>
-</div>
-
-{% endfor %}
-
-</div>
-
-</div>
-</div>
-
 </div>
 
 {% endblock %}
