@@ -37,6 +37,21 @@ href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css">
 
 <div class="container-fluid">
     <h3 class="mb-4">📊 Admin Dashboard - All Tickets</h3>
+
+    {% if not user.is_superuser %}
+<div class="alert alert-info d-flex align-items-center gap-2 mb-3">
+    <i class="bi bi-info-circle"></i>
+    Showing tickets for your departments:
+    <strong>
+        {% for dept in request.user.profile.departments.all %}
+            {{ dept.name }}{% if not forloop.last %}, {% endif %}
+        {% empty %}
+            No departments assigned — contact your administrator
+        {% endfor %}
+    </strong>
+</div>
+{% endif %}
+
     <div id="alertContainer"
      class="position-fixed top-0 end-0 p-3"
      style="z-index:1055; width:350px;">
@@ -47,6 +62,8 @@ href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css">
 </div>
 
 </div>  
+
+{% if user.is_superuser %}
 
 <div class="card shadow-sm mt-4">
     <div class="card-body">
@@ -63,6 +80,8 @@ href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css">
 
     </div>
 </div>
+
+
 <div class="row mb-4 text-center">
 
 <div class="col-md-4">
@@ -93,7 +112,7 @@ href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css">
 </div>
 
 </div>
-
+{% endif %}
 <div class="mb-3">
     <label class="form-label"><strong>Status Filter</strong></label>
     <select id="statusFilter" class="form-select w-auto">
@@ -119,7 +138,9 @@ href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css">
         <th>Contact Email</th>
         <th>Priority</th>
         <th>Status</th>
+        {% if is_superuser %}
         <th>Assigned To</th>
+        {% endif %}
         <th>View</th>
         <th>Created</th>
         <th>Print</th>
@@ -139,7 +160,7 @@ href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css">
 
     <!-- Priority filter - column 6 -->
     <th>
-        <select class="form-select form-select-sm column-filter" data-column="5">
+        <select class="form-select form-select-sm column-filter" data-column="6">
             <option value="">All</option>
             <option value="CRITICAL">Critical</option>
             <option value="HIGH">High</option>
@@ -160,14 +181,18 @@ href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css">
     </th>
 
     <!-- Assigned filter - column 8 -->
-    <th>
-        <select class="form-select form-select-sm column-filter" data-column="8">
-            <option value="">All</option>
-            {% for user in staff_users %}
-            <option value="{{ user.username }}">{{ user.username }}</option>
-            {% endfor %}
-        </select>
-    </th>
+    {% if is_superuser %}
+<th>
+    <select class="form-select form-select-sm column-filter" data-column="8">
+        <option value="">All</option>
+        {% for user in staff_users %}
+        <option value="{{ user.username }}">{{ user.username }}</option>
+        {% endfor %}
+    </select>
+</th>
+{% else %}
+<th></th>
+{% endif %}
 
     <th></th> <!-- Created -->
     <th></th> <!-- Print -->
@@ -244,23 +269,25 @@ data-order="{% if ticket.status == 'OPEN' %}1{% elif ticket.status == 'IN_PROGRE
 </select>
 </td>
 
-                   <td data-order="{{ ticket.assigned_to.username|default:'' }}">
+{% if is_superuser %}
+<td data-order="{{ ticket.assigned_to.username|default:'' }}"
+    data-search="{{ ticket.assigned_to.username|default:'' }}">
     {% csrf_token %}
-
     <select class="form-select form-select-sm assign-select"
-        data-id="{{ ticket.id }}">
-
+            data-id="{{ ticket.id }}">
         <option value="">Unassigned</option>
-
         {% for user in staff_users %}
         <option value="{{ user.id }}"
             {% if ticket.assigned_to == user %}selected{% endif %}>
             {{ user.username }}
         </option>
         {% endfor %}
-
     </select>
 </td>
+{% else %}
+<td>{{ ticket.assigned_to.username|default:"Unassigned" }}</td>
+{% endif %}
+
 
 <td>
     <a href="{% url 'ticket_detail' ticket.id %}"
@@ -721,15 +748,20 @@ $(document).on("click", ".desc-toggle", function () {
 });
 
 // ASSIGN UPDATE
-$(document).on("change", ".assign-select", function () {
-    const ticketId = $(this).data("id");
-    const value = $(this).val();
-    const row = $(this).closest("tr");
+if (window.isSuperuser) {
+    $(document).on("change", ".assign-select", function () {
+        const ticketId = $(this).data("id");
+        const value = $(this).val();
+        const row = $(this).closest("tr");
 
-    ajaxUpdate(`/assign-ticket/${ticketId}/`, { assigned_to: value }, () => {
-        flashRow(row);
+        recentlyUpdated.add(String(ticketId));
+        setTimeout(() => recentlyUpdated.delete(String(ticketId)), 8000);
+
+        ajaxUpdate(`/assign-ticket/${ticketId}/`, { assigned_to: value }, () => {
+            flashRow(row);
+        });
     });
-});
+}
 
 $(document).on("click", ".delete-btn", function () {
     const ticketId = $(this).data("id");

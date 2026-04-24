@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect , get_object_or_404
 from django.contrib.auth.decorators import login_required , user_passes_test
 from .forms import TicketForm , RegisterForm
-from .models import Ticket , FAQ ,TicketActivity , UserProfile, Cabang
+from .models import Ticket , FAQ ,TicketActivity , UserProfile, Cabang , Department
 from django.contrib.auth.models import User
 from django.contrib.auth import login
 from django.contrib import messages
@@ -80,21 +80,36 @@ def my_tickets(request):
     return render(request, "tiket/my_tickets.html", {"tickets": tickets})
     
 @login_required
-@user_passes_test(lambda u: u.is_superuser)
+@user_passes_test(lambda u: u.is_staff)
 def admin_dashboard(request):
+    if request.user.is_superuser:
+        # Superuser sees everything
+        tickets = Ticket.objects.filter(
+            deleted_at__isnull=True
+        ).select_related(
+            "created_by", "assigned_to", "department"
+        ).order_by("-created_at")
+    else:
+        # Staff sees only tickets from their assigned departments
+        try:
+            staff_departments = request.user.profile.departments.all()
+        except UserProfile.DoesNotExist:
+            staff_departments = Department.objects.none()
 
-    tickets = Ticket.objects.filter(
-        deleted_at__isnull=True
-    ).select_related(
-        "created_by", "assigned_to", "department"
-    ).order_by("-created_at")
+        tickets = Ticket.objects.filter(
+            deleted_at__isnull=True,
+            department__in=staff_departments
+        ).select_related(
+            "created_by", "assigned_to", "department"
+        ).order_by("-created_at")
 
     staff_users = User.objects.filter(is_staff=True)
 
     return render(request, "tiket/admin_dashboard.html", {
         "tickets": tickets,
         "staff_users": staff_users,
-        "status_choices": Ticket.Status.choices
+        "status_choices": Ticket.Status.choices,
+        "is_superuser": request.user.is_superuser,
     })
     
 @user_passes_test(is_admin)
@@ -155,6 +170,9 @@ def user_dashboard(request):
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def assign_ticket(request, ticket_id):
+    if not request.user.is_superuser:
+        return Response({"success": False, "error": "Not authorized"}, status=403)
+
     ticket = get_object_or_404(Ticket, id=ticket_id)
     user_id = request.data.get("assigned_to")
 
@@ -167,7 +185,6 @@ def assign_ticket(request, ticket_id):
             message=f"You have been assigned to ticket #{ticket.id}: {ticket.title}.",
             recipient_email=user.email
         )
-        # Also notify the ticket creator
         send_ticket_email(
             subject=f"[Ticket #{ticket.id}] Your ticket has been assigned",
             message=f"Your ticket '{ticket.title}' has been assigned to {user.username}.",
@@ -220,10 +237,11 @@ def register(request):
                 cabang=form.cleaned_data["cabang"]
             )
             login(request, user)
-            return redirect("my_tickets")
+            if user.is_staff:
+                return redirect("admin_dashboard")
+            return redirect("user_dashboard")
     else:
         form = RegisterForm()
-
     return render(request, "registration/register.html", {"form": form})
 # Create your views here.
 
@@ -279,7 +297,7 @@ class TicketDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = TicketSerializer
     
 @login_required    
-@user_passes_test(lambda u: u.is_superuser)
+@user_passes_test(lambda u: u.is_staff)
 def delete_ticket(request, ticket_id):
     if request.method == "POST" and request.user.is_superuser:
         ticket = get_object_or_404(Ticket, id=ticket_id)
@@ -352,27 +370,37 @@ def latest_ticket(request):
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def ticket_stats(request):
+    qs = Ticket.objects.filter(deleted_at__isnull=True)
 
-    stats = Ticket.objects.filter(
-        deleted_at__isnull=True
-    ).values("status").annotate(count=Count("id"))
+    if not request.user.is_superuser and request.user.is_staff:
+        try:
+            staff_departments = request.user.profile.departments.all()
+            qs = qs.filter(department__in=staff_departments)
+        except UserProfile.DoesNotExist:
+            qs = qs.none()
 
-    result = {
-        "OPEN": 0,
-        "IN_PROGRESS": 0,
-        "CLOSED": 0
-    }
+    stats = qs.values("status").annotate(count=Count("id"))
 
+    result = {"OPEN": 0, "IN_PROGRESS": 0, "CLOSED": 0}
     for s in stats:
         result[s["status"]] = s["count"]
 
     return Response(result)
 
+
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def activity_feed(request):
+    qs = TicketActivity.objects.order_by("-created_at")
 
-    activities = TicketActivity.objects.order_by("-created_at")[:10]
+    if not request.user.is_superuser and request.user.is_staff:
+        try:
+            staff_departments = request.user.profile.departments.all()
+            qs = qs.filter(ticket__department__in=staff_departments)
+        except UserProfile.DoesNotExist:
+            qs = qs.none()
+
+    activities = qs[:10]
 
     data = [
         {
@@ -612,6 +640,18 @@ def ticket_detail(request, ticket_id):
         deleted_at__isnull=True
     )
 
+    # Access control
+    if not request.user.is_superuser:
+        if request.user.is_staff:
+            try:
+                staff_departments = request.user.profile.departments.all()
+            except UserProfile.DoesNotExist:
+                staff_departments = []
+            if ticket.department not in staff_departments:
+                return redirect("admin_dashboard")
+        elif ticket.created_by != request.user:
+            return redirect("home")
+
     staff_users = User.objects.filter(is_staff=True)
 
     if request.method == "POST":
@@ -640,4 +680,26 @@ def ticket_detail(request, ticket_id):
         "comments": ticket.comments.order_by("created_at"),
         "attachments": ticket.attachments.order_by("uploaded_at"),
         "activities": ticket.ticketactivity_set.order_by("-created_at")[:20],
+    })
+    
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+def manage_staff_departments(request):
+    staff_users = User.objects.filter(is_staff=True).prefetch_related(
+        "profile__departments"
+    )
+    departments = Department.objects.all()
+
+    if request.method == "POST":
+        user_id = request.POST.get("user_id")
+        dept_ids = request.POST.getlist("departments")
+        user = get_object_or_404(User, id=user_id)
+        profile, _ = UserProfile.objects.get_or_create(user=user)
+        profile.departments.set(dept_ids)
+        messages.success(request, f"Departments updated for {user.username}.")
+        return redirect("manage_staff_departments")
+
+    return render(request, "tiket/manage_staff_departments.html", {
+        "staff_users": staff_users,
+        "departments": departments,
     })

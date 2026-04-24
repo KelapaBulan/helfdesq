@@ -52,6 +52,7 @@ urlpatterns = [
     path("api/avg-resolution-time/", views.avg_resolution_time),
     path("tickets/<int:ticket_id>/print/", views.print_ticket, name="print_ticket"),
     path("tickets/<int:ticket_id>/comment/", views.add_comment, name="add_comment"),
+    path("manage-staff/", views.manage_staff_departments, name="manage_staff_departments"),
     path("tickets/<int:ticket_id>/attach/", views.add_attachment, name="add_attachment"),
     path("tickets/<int:ticket_id>/cancel/", views.cancel_ticket, name="cancel_ticket"),
     path("tickets/<int:ticket_id>/detail/", views.ticket_detail, name="ticket_detail"),

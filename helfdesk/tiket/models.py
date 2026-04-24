@@ -73,9 +73,6 @@ class Ticket(models.Model):
         )
     def __str__(self):
         return f"#{self.id} - {self.title}"
-
-    def __str__(self):
-        return f"#{self.id} - {self.title}"
     
 class FAQ(models.Model):
     question = models.CharField(max_length=255)
@@ -109,6 +106,11 @@ class UserProfile(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True
+    )
+    departments = models.ManyToManyField(
+        Department,
+        blank=True,
+        related_name="staff_members"
     )
 
     def __str__(self):

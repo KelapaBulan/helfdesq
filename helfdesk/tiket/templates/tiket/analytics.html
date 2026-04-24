@@ -50,10 +50,15 @@
     <canvas id="volumeChart"></canvas>
 </div>
 
-    <div class="chart-box">
-        <h6>Tickets per Department</h6> 
-        <canvas id="deptChart"></canvas>
-    </div>
+    <table border="1">
+    <thead>
+        <tr>
+            <th>Department</th>
+            <th>Ticket Count</th>
+        </tr>
+    </thead>
+    <tbody id="deptTableBody"></tbody>
+</table>
 
     <div class="chart-box full-width">
         <canvas id="avgChart"></canvas>
@@ -88,14 +93,17 @@ fetch("/api/ticket-volume/")
 fetch("/api/tickets-per-department/")
 .then(res => res.json())
 .then(data => {
-    new Chart(document.getElementById("deptChart"), {
-        type: "pie",
-        data: {
-            labels: data.map(d => d.department || "Unassigned"),
-            datasets: [{
-                data: data.map(d => d.count)
-            }]
-        }
+    const tbody = document.getElementById("deptTableBody");
+    tbody.innerHTML = "";
+
+    data.forEach(d => {
+        const row = `
+            <tr>
+                <td>${d.department || "Unassigned"}</td>
+                <td>${d.count}</td>
+            </tr>
+        `;
+        tbody.innerHTML += row;
     });
 });
 

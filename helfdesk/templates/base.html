@@ -226,47 +226,51 @@ document.addEventListener("DOMContentLoaded", function () {
     </h5>
 
     {% if user.is_superuser %}
-        <a href="/admin/" class="d-flex align-items-center gap-2">
-    <i class="bi bi-shield-lock"></i>
-    <span class="menu-text">Admin Panel</span>
+    <a href="/admin/" class="d-flex align-items-center gap-2">
+        <i class="bi bi-shield-lock"></i>
+        <span class="menu-text">Admin Panel</span>
+    </a>
+{% endif %}
+
+{% if user.is_staff %}
+    <a href="{% url 'admin_dashboard' %}" class="d-flex align-items-center gap-2">
+        <i class="bi bi-speedometer2"></i>
+        <span class="menu-text">All Tickets</span>
+    </a>
+    <a href="{% url 'create_ticket' %}" class="d-flex align-items-center gap-2">
+        <i class="bi bi-plus-circle"></i>
+        <span class="menu-text">Create Ticket</span>
+    </a>
+    <a href="{% url 'analytics' %}" class="d-flex align-items-center gap-2">
+        <i class="bi bi-graph-up"></i>
+        <span class="menu-text">Analytics</span>
+    </a>
+{% endif %}
+
+{% if user.is_superuser %}
+    <a href="{% url 'deleted_tickets' %}" class="d-flex align-items-center gap-2">
+        <i class="bi bi-trash"></i>
+        <span class="menu-text">Deleted Tickets</span>
+    </a>
+{% endif %}
+
+{% if user.is_superuser %}
+<a href="{% url 'manage_staff_departments' %}" class="d-flex align-items-center gap-2">
+    <i class="bi bi-people"></i>
+    <span class="menu-text">Manage Staff</span>
 </a>
+{% endif %}
 
-<a href="{% url 'admin_dashboard' %}" class="d-flex align-items-center gap-2">
-    <i class="bi bi-speedometer2"></i>
-    <span class="menu-text">All Tickets</span>
-</a>
-
-<a href="{% url 'create_ticket' %}" class="d-flex align-items-center gap-2">
-    <i class="bi bi-plus-circle"></i>
-    <span class="menu-text">Create Ticket</span>
-</a>
-
-<a href="{% url 'analytics' %}" class="d-flex align-items-center gap-2">
-    <i class="bi bi-graph-up"></i>
-    <span class="menu-text">Analytics</span>
-</a>
-
-<a href="{% url 'deleted_tickets' %}" class="d-flex align-items-center gap-2">
-    <i class="bi bi-trash"></i>
-    <span class="menu-text">Deleted Tickets</span>
-</a>
-
-
-    {% else %}
-        <a href="/tickets/create/" class="d-flex align-items-center gap-2">
-            <i class="bi bi-plus-circle"></i>
-            <span class="menu-text">Create Ticket</span>
-        </a>
-
-        <a href="/tickets/my/" 
-            class="d-flex align-items-center gap-2"
-            data-bs-toggle="tooltip" 
-            data-bs-placement="right"
-            title="My Tickets">
-            <i class="bi bi-ticket-detailed"></i>
-            <span class="menu-text">My Tickets</span>
-        </a>
-    {% endif %}
+{% if not user.is_staff %}
+    <a href="{% url 'create_ticket' %}" class="d-flex align-items-center gap-2">
+        <i class="bi bi-plus-circle"></i>
+        <span class="menu-text">Create Ticket</span>
+    </a>
+    <a href="{% url 'my_tickets' %}" class="d-flex align-items-center gap-2">
+        <i class="bi bi-ticket-detailed"></i>
+        <span class="menu-text">My Tickets</span>
+    </a>
+{% endif %}
 </div>
 
 

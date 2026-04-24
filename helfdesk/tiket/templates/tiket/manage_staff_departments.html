@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Manage Staff Departments{% endblock %}
+{% block content %}
+<div class="container">
+    <h4 class="fw-bold mb-4">👥 Manage Staff Departments</h4>
+
+    {% if messages %}
+        {% for message in messages %}
+        <div class="alert alert-success">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="row g-4">
+        {% for staff in staff_users %}
+        <div class="col-md-6">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <h6 class="fw-semibold mb-1">{{ staff.username }}</h6>
+                    <small class="text-muted d-block mb-3">
+                        {{ staff.email }}
+                        {% if staff.profile.cabang %}
+                            · {{ staff.profile.cabang }}
+                        {% endif %}
+                    </small>
+
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="user_id" value="{{ staff.id }}">
+
+                        <div class="mb-3">
+                            {% for dept in departments %}
+                            <div class="form-check">
+                                <input class="form-check-input"
+                                       type="checkbox"
+                                       name="departments"
+                                       value="{{ dept.id }}"
+                                       id="dept_{{ staff.id }}_{{ dept.id }}"
+                                       {% if dept in staff.profile.departments.all %}checked{% endif %}>
+                                <label class="form-check-label"
+                                       for="dept_{{ staff.id }}_{{ dept.id }}">
+                                    {{ dept.name }}
+                                </label>
+                            </div>
+                            {% endfor %}
+                        </div>
+
+                        <button type="submit" class="btn btn-primary btn-sm">
+                            Save
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
