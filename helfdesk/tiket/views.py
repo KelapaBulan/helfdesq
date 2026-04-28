@@ -22,6 +22,8 @@ from django.utils import timezone
 from django.core.mail import send_mail
 from .models import Ticket, FAQ, TicketActivity, UserProfile, Cabang, TicketComment, TicketAttachment
 from django.db.models import Count, Avg, F, ExpressionWrapper, DurationField
+from django.contrib.auth.forms import AuthenticationForm
+from django.contrib.auth import authenticate , login as auth_login
 
 
 
@@ -244,6 +246,28 @@ def register(request):
         form = RegisterForm()
     return render(request, "registration/register.html", {"form": form})
 # Create your views here.
+
+def custom_login(request):
+    if request.user.is_authenticated:
+        return redirect('home')
+
+    if request.method == "POST":
+        form = AuthenticationForm(request, data=request.POST)
+        if form.is_valid():
+            user = form.get_user()
+            auth_login(request, user)
+
+            # Remember Me — extend session to 30 days if checked
+            if request.POST.get('remember_me'):
+                request.session.set_expiry(60 * 60 * 24 * 30)
+            else:
+                request.session.set_expiry(0)  # expires on browser close
+
+            return redirect('home')
+    else:
+        form = AuthenticationForm(request)
+
+    return render(request, 'registration/login.html', {'form': form})
 
 @csrf_exempt
 def create_ticket_api(request):

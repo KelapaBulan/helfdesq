@@ -154,10 +154,18 @@ href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css">
     <th></th> <!-- ID -->
     <th></th> <!-- Title -->
     <th></th> <!-- User -->
-    <th></th> <!-- Cabang -->
-    <th></th> <!-- Department -->
+    <th>
+        <select class="form-select form-select-sm column-filter" data-column="4">
+            <option value="">All</option>
+            <option value="IT SUPPORT">IT Support</option>
+            <option value="SOFTWARE">Software</option>
+            <option value="NETWORK">Network</option>
+            <option value="HARDWARE">Hardware</option>
+        </select>
+    </th> <!-- Cabang -->
+    <th></th><!-- Department -->
      <!-- Contact Email -->
-
+    
     <!-- Priority filter - column 6 -->
     <th>
         <select class="form-select form-select-sm column-filter" data-column="6">
