@@ -14,6 +14,7 @@ A web-based IT help desk ticketing system built with Django and Django REST Fram
 - Soft delete with recycle bin (restore or permanently delete)
 - JWT-based REST API
 - Postman collection included
+- Reset password and remember me function
 
 ---
 
@@ -71,6 +72,7 @@ Follow the prompts to set a username, email, and password. This account will hav
 ### 6. (Optional) Create staff users
 
 Log in to the Django admin panel at `/admin/` and create additional users. Set `is_staff = True` for users who should appear in the ticket assignment dropdown.
+Additionally, superusers can assign any user as a staff later.
 
 ### 7. Run the development server
 
