@@ -172,11 +172,14 @@ def user_dashboard(request):
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def assign_ticket(request, ticket_id):
-    if not request.user.is_superuser:
-        return Response({"success": False, "error": "Not authorized"}, status=403)
-
     ticket = get_object_or_404(Ticket, id=ticket_id)
     user_id = request.data.get("assigned_to")
+
+    # Superuser can assign anyone
+    # Staff can only assign to themselves
+    if not request.user.is_superuser:
+        if user_id and str(user_id) != str(request.user.id):
+            return Response({"success": False, "error": "Staff can only self-assign"}, status=403)
 
     if user_id:
         user = User.objects.get(id=user_id)

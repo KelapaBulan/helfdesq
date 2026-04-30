@@ -165,6 +165,10 @@ EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
 DEFAULT_FROM_EMAIL = os.getenv("EMAIL_HOST_USER")
 
+SESSION_COOKIE_SECURE = True   # HTTPS only
+SESSION_COOKIE_HTTPONLY = True  # prevent JS access to cookie
+CSRF_COOKIE_SECURE = True      # HTTPS only for CSRF cookie
+
 # Media (file uploads)
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'

@@ -211,18 +211,26 @@
             </div>
 
             <div class="mb-3">
-                <label class="form-label small text-muted">Assign To</label>
-                <select class="form-select form-select-sm assign-select"
-                        data-id="{{ ticket.id }}">
-                    <option value="">Unassigned</option>
-                    {% for user in staff_users %}
-                    <option value="{{ user.id }}"
-                        {% if ticket.assigned_to == user %}selected{% endif %}>
-                        {{ user.username }}
-                    </option>
-                    {% endfor %}
-                </select>
-            </div>
+    <label class="form-label small text-muted">Assign To</label>
+    <select class="form-select form-select-sm assign-select"
+            data-id="{{ ticket.id }}">
+        <option value="">Unassigned</option>
+        {% if request.user.is_superuser %}
+            {% for user in staff_users %}
+            <option value="{{ user.id }}"
+                {% if ticket.assigned_to == user %}selected{% endif %}>
+                {{ user.username }}
+            </option>
+            {% endfor %}
+        {% else %}
+            <!-- Staff can only self-assign -->
+            <option value="{{ request.user.id }}"
+                {% if ticket.assigned_to == request.user %}selected{% endif %}>
+                {{ request.user.username }} (me)
+            </option>
+        {% endif %}
+    </select>
+</div>
 
             <a href="{% url 'print_ticket' ticket.id %}"
                target="_blank"
@@ -274,18 +282,6 @@ function ajaxUpdate(url, data, onSuccess) {
     .then(response => { if (onSuccess) onSuccess(response); })
     .catch(err => console.error("AJAX error:", err));
 }
-
-document.querySelector(".status-select").addEventListener("change", function () {
-    ajaxUpdate(`/update-status/${this.dataset.id}/`, { status: this.value }, () => {
-        location.reload();
-    });
-});
-
-document.querySelector(".assign-select").addEventListener("change", function () {
-    ajaxUpdate(`/assign-ticket/${this.dataset.id}/`, { assigned_to: this.value }, () => {
-        location.reload();
-    });
-});
 
 const statusSelect = document.querySelector(".status-select");
 const assignSelect = document.querySelector(".assign-select");
